@@ -92,6 +92,17 @@ function generateGameId(): string {
   return Math.random().toString(36).substr(2, 9);  // Creates random 9-character string
 }
 
+// Broadcast queue status to all players in queue
+function broadcastQueueStatus(): void {
+  const queueSize = waitingQueue.length;
+  waitingQueue.forEach((player, index) => {
+    player.socket.emit("queue-status-update", {
+      queueSize,
+      position: index + 1
+    });
+  });
+}
+
 // Find which game instance a specific player is currently in
 function findGameInstance(playerId: string): GameInstance | undefined {
   // Loop through all active games to find this player
@@ -242,6 +253,9 @@ io.on("connection", (socket: Socket) => {
       // No one else waiting, add this player to the queue
       waitingQueue.push(player);
       socket.emit("waiting-for-opponent", { queuePosition: waitingQueue.length });
+
+      // Broadcast updated queue status to all waiting players
+      broadcastQueueStatus();
     }
   });
 
@@ -249,6 +263,9 @@ io.on("connection", (socket: Socket) => {
   socket.on("leave-queue", () => {
     removePlayerFromQueue(socket.id);  // Remove them from queue
     socket.emit("left-queue");         // Confirm they left
+
+    // Broadcast updated queue status to remaining players
+    broadcastQueueStatus();
   });
 
   // ===== GAMEPLAY EVENTS =====
@@ -279,6 +296,9 @@ io.on("connection", (socket: Socket) => {
 
     // Remove from queue if they were waiting
     removePlayerFromQueue(socket.id);
+
+    // Broadcast updated queue status to remaining players
+    broadcastQueueStatus();
 
     // If they were in a game, handle the disconnection
     const gameInstance = findGameInstance(socket.id);

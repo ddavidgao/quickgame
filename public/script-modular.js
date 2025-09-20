@@ -36,6 +36,7 @@ class ModularQuickGame {
             playerNameInput: document.getElementById('player-name'),
             findMatchBtn: document.getElementById('find-match-btn'),
             queueStatus: document.getElementById('queue-status'),
+            queueCount: document.getElementById('queue-count'),
             cancelQueueBtn: document.getElementById('cancel-queue-btn'),
 
             // Game screen elements
@@ -74,14 +75,18 @@ class ModularQuickGame {
 
     bindSocketEvents() {
         this.socket.on('waiting-for-opponent', (data) => {
-            this.elements.queueStatus.classList.remove('hidden');
+            this.showSearchingState();
+        });
+
+        this.socket.on('queue-status-update', (data) => {
+            this.updateQueueStatus(data.queueSize, data.position);
         });
 
         this.socket.on('game-found', (data) => {
             this.currentGame = data;
             this.elements.opponentNameDisplay.textContent = data.opponent;
             this.showScreen('game');
-            this.elements.queueStatus.classList.add('hidden');
+            this.hideSearchingState();
 
             console.log(`Game found: ${data.gameName} (${data.gameType})`);
             console.log(`Description: ${data.description}`);
@@ -144,7 +149,7 @@ class ModularQuickGame {
         });
 
         this.socket.on('left-queue', () => {
-            this.elements.queueStatus.classList.add('hidden');
+            this.hideSearchingState();
         });
 
         this.socket.on('game-error', (data) => {
@@ -161,11 +166,17 @@ class ModularQuickGame {
     findMatch() {
         this.playerName = this.elements.playerNameInput.value.trim() || 'Anonymous';
         this.elements.playerNameDisplay.textContent = this.playerName;
+
+        // Disable the find match button and show loading state
+        this.elements.findMatchBtn.disabled = true;
+        this.elements.findMatchBtn.textContent = 'Searching...';
+
         this.socket.emit('join-queue', this.playerName);
     }
 
     cancelQueue() {
         this.socket.emit('leave-queue');
+        this.resetFindMatchButton();
     }
 
     showScreen(screenName) {
@@ -260,11 +271,54 @@ class ModularQuickGame {
         this.currentGameComponent = null;
 
         this.hideCountdown();
-        this.elements.queueStatus.classList.add('hidden');
+        this.hideSearchingState();
+        this.resetFindMatchButton();
         this.updateScores(0, 0);
 
         // Clear game area
         this.elements.gameArea.innerHTML = '';
+    }
+
+    showSearchingState() {
+        this.elements.queueStatus.classList.remove('hidden');
+        this.elements.findMatchBtn.disabled = true;
+        this.elements.findMatchBtn.textContent = 'Searching...';
+    }
+
+    hideSearchingState() {
+        this.elements.queueStatus.classList.add('hidden');
+        this.resetFindMatchButton();
+    }
+
+    updateQueueStatus(queueSize, position) {
+        if (this.elements.queueCount) {
+            this.elements.queueCount.textContent = queueSize;
+        }
+
+        // Update the queue position text
+        const queuePositionText = document.getElementById('queue-position-text');
+        if (queuePositionText && position) {
+            if (position === 1) {
+                queuePositionText.textContent = 'You are next in line!';
+                queuePositionText.className = 'queue-position priority';
+            } else {
+                queuePositionText.textContent = `Position ${position} in queue`;
+                queuePositionText.className = 'queue-position';
+            }
+        }
+
+        // Update the main status message for better feedback
+        const mainStatusText = this.elements.queueStatus.querySelector('p');
+        if (mainStatusText && queueSize > 1) {
+            mainStatusText.textContent = 'Searching for opponent...';
+        } else if (mainStatusText && queueSize === 1) {
+            mainStatusText.textContent = 'Waiting for another player...';
+        }
+    }
+
+    resetFindMatchButton() {
+        this.elements.findMatchBtn.disabled = false;
+        this.elements.findMatchBtn.textContent = 'Find Match';
     }
 }
 
