@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/server-modular.js",
     "dev": "nodemon --exec ts-node server-modular.ts",
-    "build": "tsc",
+    "build": "tsc && cp -r public dist/",
     "clean": "rm -rf dist && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
