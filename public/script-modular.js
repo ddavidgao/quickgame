@@ -109,7 +109,7 @@ class ModularQuickGame {
 
         this.socket.on('game-start', (data) => {
             this.hideCountdown();
-            this.startGame(data.gameType, data.gameData);
+            this.startGame(data.gameType, data);
         });
 
         this.socket.on('game-update', (data) => {

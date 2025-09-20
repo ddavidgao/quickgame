@@ -63,7 +63,7 @@ class TicTacToeComponent {
         this.container = gameContainer;
         this.socket = socket;
         this.elements = {};
-        this.playerIndex = 0; // Will be set by game logic
+        this.playerIndex = 0; // Will be set by initializeWithData
     }
 
     render() {
@@ -90,17 +90,29 @@ class TicTacToeComponent {
         }
     }
 
+    initializeWithData(gameData) {
+        if (gameData && gameData.hasOwnProperty('playerIndex')) {
+            this.playerIndex = gameData.playerIndex;
+            console.log(`TicTacToe: Player index set to ${this.playerIndex}`);
+        }
+        // Update the board with initial game state
+        if (gameData && gameData.gameData) {
+            this.updateBoard(gameData.gameData.board, gameData.gameData.currentPlayer);
+        }
+    }
+
     updateBoard(board, currentPlayer) {
         this.elements.cells.forEach((cell, index) => {
             cell.textContent = board[index] || '';
             cell.classList.toggle('disabled', !!board[index]);
         });
 
-        const symbol = currentPlayer === 0 ? 'X' : 'O';
+        const currentPlayerSymbol = currentPlayer === 0 ? 'X' : 'O';
+        const mySymbol = this.playerIndex === 0 ? 'X' : 'O';
         const isYourTurn = currentPlayer === this.playerIndex;
         this.elements.status.textContent = isYourTurn
-            ? `Your turn (${symbol})`
-            : `Opponent's turn (${symbol})`;
+            ? `Your turn (${mySymbol})`
+            : `Opponent's turn (${currentPlayerSymbol})`;
     }
 
     cleanup() {

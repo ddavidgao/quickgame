@@ -35,10 +35,13 @@ export class TicTacToeGame extends BaseGame {
 
   // Called when the game begins (after countdown)
   protected onGameStart(): void {
-    // Tell both players the game started and send initial board state
-    this.emitToPlayers("game-start", {
-      gameType: this.config.id,
-      gameData: this.getClientGameData()
+    // Tell each player individually what their player index is
+    this.players.forEach((player, playerIndex) => {
+      this.emitToPlayer(player.id, "game-start", {
+        gameType: this.config.id,
+        gameData: this.getClientGameData(),
+        playerIndex: playerIndex  // 0 for first player (X), 1 for second player (O)
+      });
     });
   }
 
