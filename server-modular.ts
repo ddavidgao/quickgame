@@ -42,7 +42,7 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;  // Use environment port or default to 3000
 
 // Serve static files (HTML, CSS, JS) from the public directory
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // =====================================================
 // DATA STRUCTURES & INTERFACES
