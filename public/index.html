@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickGame - Real-time 1v1 Battles</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Main Menu -->
+        <div id="menu-screen" class="screen active">
+            <div class="container">
+                <h1>QuickGame</h1>
+                <p>Real-time 1v1 mini-game battles</p>
+
+                <div class="input-group">
+                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                </div>
+
+                <button id="find-match-btn" class="btn primary">Find Match</button>
+
+                <div id="queue-status" class="status hidden">
+                    <div class="spinner"></div>
+                    <p>Looking for opponent...</p>
+                    <button id="cancel-queue-btn" class="btn secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="container">
+                <div id="game-header">
+                    <div class="player-info">
+                        <span id="player-name-display">You</span>
+                        <span id="player-score">0</span>
+                    </div>
+                    <div id="game-timer">30</div>
+                    <div class="player-info">
+                        <span id="opponent-score">0</span>
+                        <span id="opponent-name-display">Opponent</span>
+                    </div>
+                </div>
+
+                <div id="countdown-display" class="countdown hidden">
+                    <div class="countdown-number">3</div>
+                </div>
+
+                <div id="game-area">
+                    <!-- Reaction Time Game -->
+                    <div id="reaction-game" class="game-type hidden">
+                        <div class="reaction-zone" id="reaction-zone">
+                            <div class="signal-light red" id="signal-light"></div>
+                            <p id="reaction-instruction">Wait for GREEN...</p>
+                        </div>
+                    </div>
+
+                    <!-- Tic Tac Toe Game -->
+                    <div id="tictactoe-game" class="game-type hidden">
+                        <div class="tic-tac-toe-board" id="tic-tac-toe-board">
+                            <div class="cell" data-index="0"></div>
+                            <div class="cell" data-index="1"></div>
+                            <div class="cell" data-index="2"></div>
+                            <div class="cell" data-index="3"></div>
+                            <div class="cell" data-index="4"></div>
+                            <div class="cell" data-index="5"></div>
+                            <div class="cell" data-index="6"></div>
+                            <div class="cell" data-index="7"></div>
+                            <div class="cell" data-index="8"></div>
+                        </div>
+                        <p id="ttt-status">Your turn (X)</p>
+                    </div>
+
+                    <!-- Rock Paper Scissors Game -->
+                    <div id="rps-game" class="game-type hidden">
+                        <div class="rps-choices">
+                            <button class="rps-choice" data-choice="rock">ROCK</button>
+                            <button class="rps-choice" data-choice="paper">PAPER</button>
+                            <button class="rps-choice" data-choice="scissors">SCISSORS</button>
+                        </div>
+                        <div id="rps-status">Choose your weapon!</div>
+                        <div id="rps-results" class="hidden">
+                            <div class="choice-display">
+                                <div>You: <span id="your-choice"></span></div>
+                                <div>Opponent: <span id="opponent-choice"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Whack a Mole Game -->
+                    <div id="whackmole-game" class="game-type hidden">
+                        <div class="mole-grid">
+                            <div class="mole-hole" data-position="0"></div>
+                            <div class="mole-hole" data-position="1"></div>
+                            <div class="mole-hole" data-position="2"></div>
+                            <div class="mole-hole" data-position="3"></div>
+                            <div class="mole-hole" data-position="4"></div>
+                            <div class="mole-hole" data-position="5"></div>
+                            <div class="mole-hole" data-position="6"></div>
+                            <div class="mole-hole" data-position="7"></div>
+                            <div class="mole-hole" data-position="8"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <div class="container">
+                <div id="result-display">
+                    <h2 id="result-title">You Win!</h2>
+                    <div class="final-scores">
+                        <div>Your Score: <span id="final-your-score">0</span></div>
+                        <div>Opponent Score: <span id="final-opponent-score">0</span></div>
+                    </div>
+                </div>
+
+                <div class="result-actions">
+                    <button id="play-again-btn" class="btn primary">Play Again</button>
+                    <button id="main-menu-btn" class="btn secondary">Main Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disconnection Screen -->
+        <div id="disconnect-screen" class="screen">
+            <div class="container">
+                <h2>Opponent Disconnected</h2>
+                <p>Your opponent has left the game.</p>
+                <button id="disconnect-menu-btn" class="btn primary">Back to Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game-components.js"></script>
+    <script src="script-modular.js"></script>
+</body>
+</html>

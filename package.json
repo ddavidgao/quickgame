@@ -2,8 +2,13 @@
   "name": "quickgame",
   "version": "1.0.0",
   "description": "HelloWorld Hackathon",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
+    "start": "node dist/server-modular.js",
+    "start:legacy": "node dist/server.js",
+    "dev": "nodemon --exec ts-node server-modular.ts",
+    "dev:legacy": "nodemon --exec ts-node server.ts",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
