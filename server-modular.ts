@@ -95,11 +95,14 @@ function generateGameId(): string {
 // Broadcast queue status to all players in queue
 function broadcastQueueStatus(): void {
   const queueSize = waitingQueue.length;
+  console.log(`Broadcasting queue status: ${queueSize} players in queue`);
   waitingQueue.forEach((player, index) => {
-    player.socket.emit("queue-status-update", {
+    const statusData = {
       queueSize,
       position: index + 1
-    });
+    };
+    console.log(`Sending queue status to ${player.name} (${player.id}):`, statusData);
+    player.socket.emit("queue-status-update", statusData);
   });
 }
 
@@ -199,6 +202,8 @@ io.on("connection", (socket: Socket) => {
 
   // Event: Player wants to join the matchmaking queue
   socket.on("join-queue", (playerName: string) => {
+    console.log(`Player ${socket.id} (${playerName}) wants to join queue. Current queue size: ${waitingQueue.length}`);
+
     // Create player object with socket connection and name
     const player: Player = {
       id: socket.id,  // Use socket ID as unique player identifier
@@ -212,9 +217,9 @@ io.on("connection", (socket: Socket) => {
 
     // Check if there's someone already waiting for a match
     if (waitingQueue.length > 0) {
+      console.log(`Match found! Pairing ${player.name} with ${waitingQueue[0].name}`);
       // Match found! Get the first player from queue
       const opponent = waitingQueue.shift()!;  // Remove opponent from queue
-      removePlayerFromQueue(socket.id);        // Make sure current player isn't also in queue
 
       try {
         // Create a tournament match between these two players
@@ -242,15 +247,21 @@ io.on("connection", (socket: Socket) => {
 
         // Start the countdown before the game begins
         startCountdown(gameInstance);
+        // Broadcast updated queue status to any remaining players
+        broadcastQueueStatus();
       } catch (error) {
         console.error("Failed to create game:", error);
         // If game creation fails, put both players back in queue
         waitingQueue.push(opponent, player);
         opponent.socket.emit("matchmaking-error", { message: "Failed to create game" });
         socket.emit("matchmaking-error", { message: "Failed to create game" });
+
+        // Broadcast updated queue status
+        broadcastQueueStatus();
       }
     } else {
       // No one else waiting, add this player to the queue
+      console.log(`Adding ${player.name} to queue. New queue size will be: ${waitingQueue.length + 1}`);
       waitingQueue.push(player);
       socket.emit("waiting-for-opponent", { queuePosition: waitingQueue.length });
 

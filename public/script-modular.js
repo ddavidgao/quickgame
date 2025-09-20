@@ -79,6 +79,7 @@ class ModularQuickGame {
         });
 
         this.socket.on('queue-status-update', (data) => {
+            console.log('Received queue status update:', data);
             this.updateQueueStatus(data.queueSize, data.position);
         });
 
@@ -166,6 +167,8 @@ class ModularQuickGame {
     findMatch() {
         this.playerName = this.elements.playerNameInput.value.trim() || 'Anonymous';
         this.elements.playerNameDisplay.textContent = this.playerName;
+
+        console.log(`Attempting to find match for player: ${this.playerName}`);
 
         // Disable the find match button and show loading state
         this.elements.findMatchBtn.disabled = true;
