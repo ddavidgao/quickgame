@@ -42,7 +42,7 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;  // Use environment port or default to 3000
 
 // Serve static files (HTML, CSS, JS) from the public directory
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // =====================================================
 // DATA STRUCTURES & INTERFACES
@@ -596,6 +596,11 @@ app.get("/games", (req, res) => {
   res.json({
     games: GameRegistry.getAllGames()  // Full game configurations including descriptions, durations, etc.
   });
+});
+
+// Catch-all handler: serve index.html for any route that doesn't match API endpoints
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 // =====================================================
