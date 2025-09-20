@@ -1,28 +1,44 @@
+// =====================================================
+// QUICKGAME FRONTEND - Main Game Controller
+// =====================================================
+// This file handles all client-side game logic:
+// 1. Socket.IO communication with server
+// 2. Screen transitions (menu -> game -> results)
+// 3. Loading game-specific UI components
+// 4. Managing player state and game flow
+
 class ModularQuickGame {
     constructor() {
-        this.socket = io();
-        this.playerName = '';
-        this.currentGame = null;
-        this.gameState = 'menu';
-        this.currentGameComponent = null;
+        // ===== CORE PROPERTIES =====
+        this.socket = io();                     // Socket.IO connection to server
+        this.playerName = '';                   // Player's chosen display name
+        this.currentGame = null;                // Current game data from server
+        this.gameState = 'menu';                // Current app state (menu/game/results)
+        this.currentGameComponent = null;       // Currently loaded game UI component
 
-        this.initializeElements();
-        this.bindEvents();
-        this.bindSocketEvents();
+        // ===== INITIALIZATION =====
+        this.initializeElements();              // Cache DOM element references
+        this.bindEvents();                      // Set up button click handlers
+        this.bindSocketEvents();                // Set up server communication
     }
 
+    // ===== DOM ELEMENT CACHING =====
+    // Cache references to DOM elements for better performance
     initializeElements() {
         this.elements = {
+            // Screen containers
             menuScreen: document.getElementById('menu-screen'),
             gameScreen: document.getElementById('game-screen'),
             resultsScreen: document.getElementById('results-screen'),
             disconnectScreen: document.getElementById('disconnect-screen'),
 
+            // Menu screen elements
             playerNameInput: document.getElementById('player-name'),
             findMatchBtn: document.getElementById('find-match-btn'),
             queueStatus: document.getElementById('queue-status'),
             cancelQueueBtn: document.getElementById('cancel-queue-btn'),
 
+            // Game screen elements
             playerNameDisplay: document.getElementById('player-name-display'),
             opponentNameDisplay: document.getElementById('opponent-name-display'),
             playerScore: document.getElementById('player-score'),
@@ -30,8 +46,10 @@ class ModularQuickGame {
             gameTimer: document.getElementById('game-timer'),
             countdownDisplay: document.getElementById('countdown-display'),
 
+            // Dynamic game area where game-specific UI is loaded
             gameArea: document.getElementById('game-area'),
 
+            // Results screen elements
             playAgainBtn: document.getElementById('play-again-btn'),
             mainMenuBtn: document.getElementById('main-menu-btn'),
             disconnectMenuBtn: document.getElementById('disconnect-menu-btn'),

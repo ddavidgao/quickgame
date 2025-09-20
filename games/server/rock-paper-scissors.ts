@@ -1,47 +1,66 @@
+// =====================================================
+// ROCK PAPER SCISSORS GAME - Classic Choice Game
+// =====================================================
+// Game Logic: Best of 3 rounds of traditional rock-paper-scissors
+// Rules: Rock beats Scissors, Scissors beats Paper, Paper beats Rock
+// First player to win 2 rounds wins the match
+
 import { BaseGame, GameConfig, GameData, GameResult, Player } from "../game-interface";
 
 export class RockPaperScissorsGame extends BaseGame {
+  // Game configuration - defines how this game behaves
   config: GameConfig = {
-    id: "rock-paper-scissors",
-    name: "Rock Paper Scissors",
-    description: "Best of 3 rounds - rock beats scissors, paper beats rock, scissors beats paper!",
-    minPlayers: 2,
+    id: "rock-paper-scissors",                                         // Unique identifier
+    name: "Rock Paper Scissors",                                       // Display name
+    description: "Best of 3 rounds - rock beats scissors, paper beats rock, scissors beats paper!",  // Instructions
+    minPlayers: 2,                                                     // Exactly 2 players required
     maxPlayers: 2,
-    duration: 30000,
-    category: "chance"
+    duration: 30000,                                                   // 30 seconds max
+    category: "chance"                                                 // Chance-based game category
   };
 
+  // ===== GAME INITIALIZATION =====
+
+  // Set up the initial game state
   initializeGameData(): GameData {
     return {
-      rounds: 0,
-      maxRounds: 3,
-      choices: {},
-      scores: [0, 0],
-      roundHistory: []
+      rounds: 0,                    // How many rounds have been completed
+      maxRounds: 3,                 // Best of 3 rounds
+      choices: {},                  // Store each player's choice for current round {0: "rock", 1: "paper"}
+      scores: [0, 0],               // Round wins for each player [player0_wins, player1_wins]
+      roundHistory: []              // History of all rounds played
     };
   }
 
+  // ===== GAME START LOGIC =====
+
+  // Called when the game begins (after countdown)
   protected onGameStart(): void {
+    // Tell both players the game started and send initial game state
     this.emitToPlayers("game-start", {
       gameType: this.config.id,
       gameData: this.getClientGameData()
     });
   }
 
+  // ===== PLAYER ACTION HANDLING =====
+
+  // Handle player choices (rock, paper, or scissors)
   handlePlayerAction(playerId: string, action: any): void {
     const playerIndex = this.players.findIndex(p => p.id === playerId);
     const { choice } = action;
 
-    // Validate choice
+    // Validate choice - reject if invalid choice or player already chose
     if (!["rock", "paper", "scissors"].includes(choice) || this.gameData.choices[playerIndex]) {
       return;
     }
 
+    // Store the player's choice
     this.gameData.choices[playerIndex] = choice;
 
-    // Check if both players have chosen
+    // Check if both players have made their choices
     if (Object.keys(this.gameData.choices).length === 2) {
-      this.resolveRound();
+      this.resolveRound();  // Process the round
     }
   }
 

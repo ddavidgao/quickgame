@@ -1,14 +1,22 @@
+// =====================================================
+// WHACK A MOLE GAME - Fast-Clicking Competition
+// =====================================================
+// Game Logic: Moles appear randomly in a 3x3 grid for 1.5 seconds each
+// Players compete to click the most moles within the time limit
+// Requires quick reflexes and mouse accuracy
+
 import { BaseGame, GameConfig, GameData, GameResult, Player } from "../game-interface";
 
 export class WhackAMoleGame extends BaseGame {
+  // Game configuration - defines how this game behaves
   config: GameConfig = {
-    id: "whack-a-mole",
-    name: "Whack a Mole",
-    description: "Click the moles as fast as you can! Most hits wins!",
-    minPlayers: 2,
+    id: "whack-a-mole",                                     // Unique identifier
+    name: "Whack a Mole",                                   // Display name
+    description: "Click the moles as fast as you can! Most hits wins!",  // Instructions
+    minPlayers: 2,                                          // Exactly 2 players required
     maxPlayers: 2,
-    duration: 10000,
-    category: "reaction"
+    duration: 10000,                                        // 10 seconds of gameplay
+    category: "reaction"                                    // Reaction-based game category
   };
 
   private moleInterval?: NodeJS.Timeout;

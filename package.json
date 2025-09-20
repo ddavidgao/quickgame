@@ -1,14 +1,13 @@
 {
   "name": "quickgame",
   "version": "1.0.0",
-  "description": "HelloWorld Hackathon",
-  "main": "dist/server.js",
+  "description": "Real-time 1v1 mini-game battles - HelloWorld Hackathon",
+  "main": "dist/server-modular.js",
   "scripts": {
     "start": "node dist/server-modular.js",
-    "start:legacy": "node dist/server.js",
     "dev": "nodemon --exec ts-node server-modular.ts",
-    "dev:legacy": "nodemon --exec ts-node server.ts",
     "build": "tsc",
+    "clean": "rm -rf dist && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -7,22 +7,45 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- =====================================================
+         QUICKGAME FRONTEND - Single Page Application
+         =====================================================
+         This HTML file contains all the UI screens for the game:
+         1. Menu Screen - Player name entry and matchmaking
+         2. Game Screen - Active gameplay area
+         3. Results Screen - Post-game results and rematch options
+         4. Disconnect Screen - Handles opponent disconnections
+
+         The JavaScript handles switching between these screens
+         based on the current game state.
+    -->
     <div id="app">
-        <!-- Main Menu -->
+        <!-- =====================================================
+             MAIN MENU SCREEN
+             =====================================================
+             Where players enter their name and find matches
+             Contains matchmaking queue with loading spinner
+        -->
         <div id="menu-screen" class="screen active">
             <div class="container">
                 <h1>QuickGame</h1>
                 <p>Real-time 1v1 mini-game battles</p>
 
+                <!-- Player name input section -->
                 <div class="input-group">
                     <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
                 </div>
 
+                <!-- Main matchmaking button -->
                 <button id="find-match-btn" class="btn primary">Find Match</button>
 
+                <!-- Queue status (shown when waiting for opponent) -->
                 <div id="queue-status" class="status hidden">
                     <div class="spinner"></div>
                     <p>Looking for opponent...</p>
+                    <div id="queue-info">
+                        <p>Players in queue: <span id="queue-count">0</span></p>
+                    </div>
                     <button id="cancel-queue-btn" class="btn secondary">Cancel</button>
                 </div>
             </div>
@@ -34,11 +57,14 @@
                 <div id="game-header">
                     <div class="player-info">
                         <span id="player-name-display">You</span>
-                        <span id="player-score">0</span>
+                        <span id="player-match-score">0</span>
                     </div>
-                    <div id="game-timer">30</div>
+                    <div class="match-info">
+                        <div id="game-progress">Game <span id="current-game">1</span>/3</div>
+                        <div id="game-timer">30</div>
+                    </div>
                     <div class="player-info">
-                        <span id="opponent-score">0</span>
+                        <span id="opponent-match-score">0</span>
                         <span id="opponent-name-display">Opponent</span>
                     </div>
                 </div>
@@ -118,8 +144,17 @@
                 </div>
 
                 <div class="result-actions">
-                    <button id="play-again-btn" class="btn primary">Play Again</button>
-                    <button id="main-menu-btn" class="btn secondary">Main Menu</button>
+                    <button id="ready-up-btn" class="btn primary">Ready for Next Game</button>
+                    <button id="rage-quit-btn" class="btn secondary">Rage Quit</button>
+                    <button id="main-menu-btn" class="btn secondary hidden">Main Menu</button>
+                </div>
+
+                <div id="ready-status" class="status hidden">
+                    <p>Waiting for opponent to ready up...</p>
+                    <div class="ready-indicators">
+                        <div class="ready-indicator">You: <span id="your-ready-status">Not Ready</span></div>
+                        <div class="ready-indicator">Opponent: <span id="opponent-ready-status">Not Ready</span></div>
+                    </div>
                 </div>
             </div>
         </div>
