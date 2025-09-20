@@ -42,8 +42,8 @@ class ModularQuickGame {
             // Game screen elements
             playerNameDisplay: document.getElementById('player-name-display'),
             opponentNameDisplay: document.getElementById('opponent-name-display'),
-            playerScore: document.getElementById('player-score'),
-            opponentScore: document.getElementById('opponent-score'),
+            playerScore: document.getElementById('player-match-score'),
+            opponentScore: document.getElementById('opponent-match-score'),
             gameTimer: document.getElementById('game-timer'),
             countdownDisplay: document.getElementById('countdown-display'),
 
@@ -51,20 +51,27 @@ class ModularQuickGame {
             gameArea: document.getElementById('game-area'),
 
             // Results screen elements
-            playAgainBtn: document.getElementById('play-again-btn'),
+            playAgainBtn: document.getElementById('ready-up-btn'),
+            rageQuitBtn: document.getElementById('rage-quit-btn'),
             mainMenuBtn: document.getElementById('main-menu-btn'),
             disconnectMenuBtn: document.getElementById('disconnect-menu-btn'),
 
             resultTitle: document.getElementById('result-title'),
             finalYourScore: document.getElementById('final-your-score'),
-            finalOpponentScore: document.getElementById('final-opponent-score')
+            finalOpponentScore: document.getElementById('final-opponent-score'),
+
+            // Ready status elements
+            readyStatus: document.getElementById('ready-status'),
+            yourReadyStatus: document.getElementById('your-ready-status'),
+            opponentReadyStatus: document.getElementById('opponent-ready-status')
         };
     }
 
     bindEvents() {
         this.elements.findMatchBtn.addEventListener('click', () => this.findMatch());
         this.elements.cancelQueueBtn.addEventListener('click', () => this.cancelQueue());
-        this.elements.playAgainBtn.addEventListener('click', () => this.findMatch());
+        this.elements.playAgainBtn.addEventListener('click', () => this.readyUp());
+        this.elements.rageQuitBtn.addEventListener('click', () => this.rageQuit());
         this.elements.mainMenuBtn.addEventListener('click', () => this.showScreen('menu'));
         this.elements.disconnectMenuBtn.addEventListener('click', () => this.showScreen('menu'));
 
@@ -75,7 +82,10 @@ class ModularQuickGame {
 
     bindSocketEvents() {
         this.socket.on('waiting-for-opponent', (data) => {
+            console.log('Received waiting-for-opponent:', data);
             this.showSearchingState();
+            // Update queue status with server data
+            this.updateQueueStatus(data.queueSize || data.queuePosition || 1, data.queuePosition || 1);
         });
 
         this.socket.on('queue-status-update', (data) => {
@@ -162,6 +172,25 @@ class ModularQuickGame {
             console.error('Matchmaking error:', data.message);
             alert(`Matchmaking error: ${data.message}`);
         });
+
+        this.socket.on('ready-status-update', (data) => {
+            console.log('Ready status update:', data);
+            this.updateReadyStatus(data.yourReady, data.opponentReady);
+        });
+
+        this.socket.on('both-players-ready', () => {
+            console.log('Both players ready - starting next game');
+            this.hideReadyStatus();
+        });
+
+        this.socket.on('opponent-rage-quit', (data) => {
+            console.log('Opponent rage quit:', data.message);
+            // Show a snarky message about the opponent rage quitting
+            alert(data.message);
+            // Return to main menu
+            this.showScreen('menu');
+            this.resetGame();
+        });
     }
 
     findMatch() {
@@ -170,16 +199,72 @@ class ModularQuickGame {
 
         console.log(`Attempting to find match for player: ${this.playerName}`);
 
-        // Disable the find match button and show loading state
+        // Show loading state but don't show fake queue numbers
         this.elements.findMatchBtn.disabled = true;
         this.elements.findMatchBtn.textContent = 'Searching...';
 
+        console.log('Emitting join-queue event...');
         this.socket.emit('join-queue', this.playerName);
+        console.log('join-queue event emitted');
     }
 
     cancelQueue() {
+        console.log('Canceling queue search');
         this.socket.emit('leave-queue');
-        this.resetFindMatchButton();
+        this.hideSearchingState();
+    }
+
+    rageQuit() {
+        console.log('Player rage quit - returning to main menu');
+        // Emit rage quit event to notify opponent
+        this.socket.emit('rage-quit');
+        // Also leave queue in case they're still in queue
+        this.socket.emit('leave-queue');
+        this.showScreen('menu');
+        this.resetGame();
+    }
+
+    readyUp() {
+        console.log('Player ready for next game');
+        this.socket.emit('player-ready');
+
+        // Show ready status and disable ready button
+        this.showReadyStatus();
+        this.elements.playAgainBtn.disabled = true;
+        this.elements.playAgainBtn.textContent = 'Ready!';
+
+        // Update own status to ready
+        if (this.elements.yourReadyStatus) {
+            this.elements.yourReadyStatus.textContent = 'Ready';
+            this.elements.yourReadyStatus.style.color = '#4CAF50';
+        }
+    }
+
+    showReadyStatus() {
+        if (this.elements.readyStatus) {
+            this.elements.readyStatus.classList.remove('hidden');
+        }
+    }
+
+    hideReadyStatus() {
+        if (this.elements.readyStatus) {
+            this.elements.readyStatus.classList.add('hidden');
+        }
+        // Reset ready button
+        this.elements.playAgainBtn.disabled = false;
+        this.elements.playAgainBtn.textContent = 'Ready for Next Game';
+    }
+
+    updateReadyStatus(yourReady, opponentReady) {
+        if (this.elements.yourReadyStatus) {
+            this.elements.yourReadyStatus.textContent = yourReady ? 'Ready' : 'Not Ready';
+            this.elements.yourReadyStatus.style.color = yourReady ? '#4CAF50' : '#f44336';
+        }
+
+        if (this.elements.opponentReadyStatus) {
+            this.elements.opponentReadyStatus.textContent = opponentReady ? 'Ready' : 'Not Ready';
+            this.elements.opponentReadyStatus.style.color = opponentReady ? '#4CAF50' : '#f44336';
+        }
     }
 
     showScreen(screenName) {
@@ -214,6 +299,9 @@ class ModularQuickGame {
             this.currentGameComponent.cleanup();
         }
 
+        // Completely clear the game area to remove any remnants
+        this.elements.gameArea.innerHTML = '';
+
         // Get the appropriate game component
         const ComponentClass = GameComponentRegistry.getComponent(gameType);
         if (!ComponentClass) {
@@ -232,12 +320,19 @@ class ModularQuickGame {
     }
 
     updateScores(playerScore, opponentScore) {
-        this.elements.playerScore.textContent = playerScore;
-        this.elements.opponentScore.textContent = opponentScore;
+        if (this.elements.playerScore) {
+            this.elements.playerScore.textContent = playerScore;
+        }
+        if (this.elements.opponentScore) {
+            this.elements.opponentScore.textContent = opponentScore;
+        }
     }
 
     endGame(data) {
         this.gameState = 'finished';
+
+        // Immediately clear the game area
+        this.elements.gameArea.innerHTML = '';
 
         let titleText = '';
         let titleClass = '';
@@ -253,10 +348,16 @@ class ModularQuickGame {
             titleClass = 'lose';
         }
 
-        this.elements.resultTitle.textContent = titleText;
-        this.elements.resultTitle.className = titleClass;
-        this.elements.finalYourScore.textContent = data.finalScores.you;
-        this.elements.finalOpponentScore.textContent = data.finalScores.opponent;
+        if (this.elements.resultTitle) {
+            this.elements.resultTitle.textContent = titleText;
+            this.elements.resultTitle.className = titleClass;
+        }
+        if (this.elements.finalYourScore) {
+            this.elements.finalYourScore.textContent = data.finalScores.you;
+        }
+        if (this.elements.finalOpponentScore) {
+            this.elements.finalOpponentScore.textContent = data.finalScores.opponent;
+        }
 
         setTimeout(() => {
             this.showScreen('results');
@@ -283,9 +384,22 @@ class ModularQuickGame {
     }
 
     showSearchingState() {
+        console.log('Showing searching state');
+        // Show the queue status section
         this.elements.queueStatus.classList.remove('hidden');
+
+        // Update button state
         this.elements.findMatchBtn.disabled = true;
         this.elements.findMatchBtn.textContent = 'Searching...';
+
+        // Ensure the cancel button is visible and functional
+        this.elements.cancelQueueBtn.style.display = 'block';
+
+        // Set initial queue message
+        const mainStatusText = this.elements.queueStatus.querySelector('p');
+        if (mainStatusText) {
+            mainStatusText.textContent = 'Searching for opponent...';
+        }
     }
 
     hideSearchingState() {
@@ -294,29 +408,41 @@ class ModularQuickGame {
     }
 
     updateQueueStatus(queueSize, position) {
+        console.log(`Updating queue status: size=${queueSize}, position=${position}`);
+
+        // Update queue count display
         if (this.elements.queueCount) {
-            this.elements.queueCount.textContent = queueSize;
+            this.elements.queueCount.textContent = queueSize || 1;
         }
 
         // Update the queue position text
         const queuePositionText = document.getElementById('queue-position-text');
-        if (queuePositionText && position) {
-            if (position === 1) {
+        if (queuePositionText) {
+            if (position === 1 || queueSize === 1) {
                 queuePositionText.textContent = 'You are next in line!';
                 queuePositionText.className = 'queue-position priority';
-            } else {
+            } else if (position) {
                 queuePositionText.textContent = `Position ${position} in queue`;
                 queuePositionText.className = 'queue-position';
+            } else {
+                queuePositionText.textContent = 'In queue';
+                queuePositionText.className = 'queue-position';
             }
+            queuePositionText.style.display = 'block';
         }
 
         // Update the main status message for better feedback
         const mainStatusText = this.elements.queueStatus.querySelector('p');
-        if (mainStatusText && queueSize > 1) {
-            mainStatusText.textContent = 'Searching for opponent...';
-        } else if (mainStatusText && queueSize === 1) {
-            mainStatusText.textContent = 'Waiting for another player...';
+        if (mainStatusText) {
+            if (queueSize > 1) {
+                mainStatusText.textContent = 'Searching for opponent...';
+            } else {
+                mainStatusText.textContent = 'Waiting for another player...';
+            }
         }
+
+        // Ensure queue status is visible
+        this.elements.queueStatus.classList.remove('hidden');
     }
 
     resetFindMatchButton() {

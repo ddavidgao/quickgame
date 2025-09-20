@@ -214,6 +214,7 @@ io.on("connection", (socket: Socket) => {
 
     // Add player to our connected players registry
     connectedPlayers.set(socket.id, player);
+    console.log(`Player ${player.name} added to connected players. Total connected: ${connectedPlayers.size}`);
 
     // Check if there's someone already waiting for a match
     if (waitingQueue.length > 0) {
@@ -227,6 +228,8 @@ io.on("connection", (socket: Socket) => {
         // Create the first game in their tournament
         const gameInstance = createGameInstanceForMatch(match);
         const gameConfig = GameRegistry.getGameConfig(gameInstance.game.config.id);
+
+        console.log(`Game created successfully: ${gameConfig?.name}`);
 
         // Tell both players they found a match and what game they're playing
         opponent.socket.emit("game-found", {
@@ -263,7 +266,13 @@ io.on("connection", (socket: Socket) => {
       // No one else waiting, add this player to the queue
       console.log(`Adding ${player.name} to queue. New queue size will be: ${waitingQueue.length + 1}`);
       waitingQueue.push(player);
-      socket.emit("waiting-for-opponent", { queuePosition: waitingQueue.length });
+      const currentPosition = waitingQueue.length;
+
+      // Send initial waiting status
+      socket.emit("waiting-for-opponent", {
+        queuePosition: currentPosition,
+        queueSize: currentPosition
+      });
 
       // Broadcast updated queue status to all waiting players
       broadcastQueueStatus();
@@ -277,6 +286,139 @@ io.on("connection", (socket: Socket) => {
 
     // Broadcast updated queue status to remaining players
     broadcastQueueStatus();
+  });
+
+  // ===== READY STATUS EVENTS =====
+
+  // Event: Player indicates they're ready for the next game in a tournament
+  socket.on("player-ready", () => {
+    console.log(`Player ${socket.id} is ready for next game`);
+
+    // Find the match this player is in
+    const matchId = playerToMatch.get(socket.id);
+    if (!matchId) {
+      console.log(`Player ${socket.id} not in any match - ignoring ready signal`);
+      return;
+    }
+
+    const match = activeMatches.get(matchId);
+    if (!match) {
+      console.log(`Match ${matchId} not found - ignoring ready signal`);
+      return;
+    }
+
+    // Set this player as ready
+    match.readyStatus.set(socket.id, true);
+    console.log(`Player ${socket.id} marked as ready in match ${matchId}`);
+
+    // Check if both players are ready
+    const allReady = Array.from(match.readyStatus.values()).every(ready => ready);
+
+    // Send ready status update to both players
+    match.players.forEach(player => {
+      const yourReady = match.readyStatus.get(player.id) || false;
+      const opponentId = match.players.find(p => p.id !== player.id)?.id;
+      const opponentReady = opponentId ? match.readyStatus.get(opponentId) || false : false;
+
+      player.socket.emit("ready-status-update", {
+        yourReady,
+        opponentReady
+      });
+    });
+
+    // If both players are ready, start next game
+    if (allReady) {
+      console.log(`Both players ready in match ${matchId} - starting next game`);
+
+      // Reset ready status for next time
+      match.readyStatus.set(match.players[0].id, false);
+      match.readyStatus.set(match.players[1].id, false);
+
+      // Advance to next game in tournament
+      match.currentGameIndex++;
+
+      if (match.currentGameIndex < match.gameQueue.length) {
+        // Start the next game in the tournament
+        try {
+          const gameInstance = createGameInstanceForMatch(match);
+          const gameConfig = GameRegistry.getGameConfig(gameInstance.game.config.id);
+
+          // Notify both players
+          match.players.forEach(player => {
+            player.socket.emit("both-players-ready");
+            player.socket.emit("game-found", {
+              gameId: gameInstance.id,
+              opponent: match.players.find(p => p.id !== player.id)?.name,
+              gameType: gameInstance.game.config.id,
+              gameName: gameConfig?.name,
+              description: gameConfig?.description
+            });
+          });
+
+          // Start the countdown
+          startCountdown(gameInstance);
+        } catch (error) {
+          console.error("Failed to create next game in tournament:", error);
+        }
+      } else {
+        // Tournament finished
+        console.log(`Tournament ${matchId} completed`);
+        match.state = "finished";
+        // Clean up match
+        activeMatches.delete(matchId);
+        match.players.forEach(player => {
+          playerToMatch.delete(player.id);
+        });
+      }
+    }
+  });
+
+  // Event: Player rage quits the tournament
+  socket.on("rage-quit", () => {
+    console.log(`Player ${socket.id} rage quit!`);
+
+    // Find the match this player is in
+    const matchId = playerToMatch.get(socket.id);
+    if (!matchId) {
+      console.log(`Player ${socket.id} not in any match - ignoring rage quit`);
+      return;
+    }
+
+    const match = activeMatches.get(matchId);
+    if (!match) {
+      console.log(`Match ${matchId} not found - ignoring rage quit`);
+      return;
+    }
+
+    // Get the opponent
+    const opponent = match.players.find(player => player.id !== socket.id);
+    if (opponent) {
+      // Array of snarky rage quit messages
+      const snarkyMessages = [
+        "🏃‍♂️ Your opponent couldn't handle the heat and rage quit! Victory by default! 🎉",
+        "😂 Someone's a sore loser! Your opponent rage quit and ran away like a scared little bunny! 🐰",
+        "🤡 Looks like your opponent threw a tantrum and left! You win by opponent meltdown! 💯",
+        "👶 Your opponent rage quit because they were getting schooled! Easy win for you! 🏆",
+        "🎭 Drama alert! Your opponent couldn't take the L and rage quit! You're the champion! 👑",
+        "🧂 Salt levels detected! Your opponent rage quit in spectacular fashion! Victory is yours! ⭐"
+      ];
+
+      // Pick a random snarky message
+      const randomMessage = snarkyMessages[Math.floor(Math.random() * snarkyMessages.length)];
+
+      // Notify the opponent with a snarky message
+      opponent.socket.emit("opponent-rage-quit", {
+        message: randomMessage
+      });
+    }
+
+    // Clean up the match
+    activeMatches.delete(matchId);
+    match.players.forEach(player => {
+      playerToMatch.delete(player.id);
+    });
+
+    console.log(`Match ${matchId} ended due to rage quit`);
   });
 
   // ===== GAMEPLAY EVENTS =====
@@ -439,6 +581,8 @@ app.get("/health", (req, res) => {
     games: activeGames.size,                    // How many games are currently active
     queue: waitingQueue.length,                 // How many players are waiting for matches
     players: connectedPlayers.size,             // Total connected players
+    queuePlayers: waitingQueue.map(p => ({ id: p.id, name: p.name })), // Debug: who's in queue
+    connectedPlayersList: Array.from(connectedPlayers.keys()), // Debug: all connected players
     registeredGames: GameRegistry.getAllGames().map(game => ({  // List all available games
       id: game.id,
       name: game.name,

@@ -13,7 +13,7 @@ body {
 }
 
 .container {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     text-align: center;
@@ -349,6 +349,28 @@ input[type="text"] {
 
 #result-title.draw {
     color: #FFC107;
+}
+
+.ready-indicators {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+}
+
+.ready-indicator {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+#your-ready-status,
+#opponent-ready-status {
+    display: block;
+    margin-top: 5px;
+    font-size: 1rem;
 }
 
 @media (max-width: 768px) {
