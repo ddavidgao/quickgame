@@ -41,7 +41,7 @@ export class GameRegistry {
   static {
     // Register all games here
     // To add a new game: just import it above and add it to this list
-    this.registerGame(ReactionTimeGame);
+    //this.registerGame(ReactionTimeGame);
     this.registerGame(TicTacToeGame);
     this.registerGame(RockPaperScissorsGame);
     this.registerGame(WhackAMoleGame);
