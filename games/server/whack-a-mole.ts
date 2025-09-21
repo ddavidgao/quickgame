@@ -32,9 +32,13 @@ export class WhackAMoleGame extends BaseGame {
   }
 
   protected onGameStart(): void {
-    this.emitToPlayers("game-start", {
-      gameType: this.config.id,
-      gameData: this.getClientGameData()
+    // Tell each player individually what their player index is
+    this.players.forEach((player, playerIndex) => {
+      this.emitToPlayer(player.id, "game-start", {
+        gameType: this.config.id,
+        gameData: this.getClientGameData(),
+        playerIndex: playerIndex  // 0 for first player, 1 for second player
+      });
     });
 
     this.startMoleSequence();

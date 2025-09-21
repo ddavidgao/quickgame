@@ -36,10 +36,13 @@ export class RockPaperScissorsGame extends BaseGame {
 
   // Called when the game begins (after countdown)
   protected onGameStart(): void {
-    // Tell both players the game started and send initial game state
-    this.emitToPlayers("game-start", {
-      gameType: this.config.id,
-      gameData: this.getClientGameData()
+    // Tell each player individually what their player index is
+    this.players.forEach((player, playerIndex) => {
+      this.emitToPlayer(player.id, "game-start", {
+        gameType: this.config.id,
+        gameData: this.getClientGameData(),
+        playerIndex: playerIndex  // 0 for first player, 1 for second player
+      });
     });
   }
 
@@ -96,9 +99,9 @@ export class RockPaperScissorsGame extends BaseGame {
 
     // Check if game is over
     if (this.gameData.rounds >= this.gameData.maxRounds) {
-      setTimeout(() => this.endGame(), 2000);
+      this.endGame();
     } else {
-      // Start next round after delay
+      // Start next round after delay (keep delay for better UX between rounds)
       setTimeout(() => {
         this.emitToPlayers("next-round", {
           round: this.gameData.rounds + 1,

@@ -68,6 +68,7 @@ interface GameInstance {
   state: "waiting" | "countdown" | "playing" | "finished";  // Current game state
   startTime?: number;                   // When the game started (timestamp)
   endTime?: number;                     // When the game ended (timestamp)
+  timerInterval?: NodeJS.Timeout;       // Timer interval for cleanup
 }
 
 // =====================================================
@@ -395,12 +396,12 @@ io.on("connection", (socket: Socket) => {
     if (opponent) {
       // Array of snarky rage quit messages
       const snarkyMessages = [
-        "🏃‍♂️ Your opponent couldn't handle the heat and rage quit! Victory by default! 🎉",
-        "😂 Someone's a sore loser! Your opponent rage quit and ran away like a scared little bunny! 🐰",
-        "🤡 Looks like your opponent threw a tantrum and left! You win by opponent meltdown! 💯",
-        "👶 Your opponent rage quit because they were getting schooled! Easy win for you! 🏆",
-        "🎭 Drama alert! Your opponent couldn't take the L and rage quit! You're the champion! 👑",
-        "🧂 Salt levels detected! Your opponent rage quit in spectacular fashion! Victory is yours! ⭐"
+        "Your opponent couldn't handle the heat and rage quit! Victory by default!",
+        "Someone's a sore loser! Your opponent rage quit and ran away like a scared little bunny!",
+        "Looks like your opponent threw a tantrum and left! You win by opponent meltdown!",
+        "Your opponent rage quit because they were getting schooled! Easy win for you!",
+        "Drama alert! Your opponent couldn't take the L and rage quit! You're the champion!",
+        "Salt levels detected! Your opponent rage quit in spectacular fashion! Victory is yours!"
       ];
 
       // Pick a random snarky message
@@ -434,6 +435,12 @@ io.on("connection", (socket: Socket) => {
     try {
       // Forward the action to the game logic to handle
       gameInstance.game.handlePlayerAction(socket.id, data);
+
+      // CRITICAL: Check if the game just ended (someone won or draw)
+      if (gameInstance.game.state === "finished") {
+        console.log(`Game ${gameInstance.id} ended immediately after player action`);
+        endGame(gameInstance);
+      }
     } catch (error) {
       console.error("Game action error:", error);
       // Tell the player their action was invalid
@@ -483,17 +490,22 @@ io.on("connection", (socket: Socket) => {
 function startCountdown(gameInstance: GameInstance): void {
   let countdown = 3;  // Start countdown from 3
 
+  // Immediately show the first countdown number (3)
+  gameInstance.game.players.forEach(player => {
+    player.socket.emit("countdown", countdown);
+  });
+
   // Send countdown numbers to both players every second
   const countdownInterval = setInterval(() => {
-    // Emit current countdown number to both players
-    gameInstance.game.players.forEach(player => {
-      player.socket.emit("countdown", countdown);
-    });
-
     countdown--;  // Decrease the countdown
 
-    // When countdown reaches 0, stop and start the actual game
-    if (countdown < 0) {
+    if (countdown > 0) {
+      // Emit current countdown number to both players
+      gameInstance.game.players.forEach(player => {
+        player.socket.emit("countdown", countdown);
+      });
+    } else {
+      // When countdown reaches 0, stop and start the actual game
       clearInterval(countdownInterval);  // Stop the countdown timer
       startGame(gameInstance);           // Begin the game
     }
@@ -511,12 +523,53 @@ function startGame(gameInstance: GameInstance): void {
 
     // Set up automatic game ending based on the game's duration
     const duration = gameInstance.game.config.duration;  // Get game duration (e.g., 30 seconds)
+    let timeLeft = Math.ceil(duration / 1000);  // Convert to seconds
+
+    // Send initial timer to players immediately
+    console.log(`Starting game timer: ${timeLeft} seconds`);
+    gameInstance.game.players.forEach(player => {
+      player.socket.emit("timer-update", timeLeft);
+    });
+
+    // Send timer updates every second - simple countdown approach
+    gameInstance.timerInterval = setInterval(() => {
+      timeLeft--;  // Decrease by 1 second
+      console.log(`Timer countdown: ${timeLeft} seconds remaining`);
+
+      if (gameInstance.state === "playing" && timeLeft > 0) {
+        gameInstance.game.players.forEach(player => {
+          player.socket.emit("timer-update", timeLeft);
+        });
+      } else if (timeLeft <= 0) {
+        // Timer reached 0, end the game
+        console.log("Timer reached 0, ending game");
+        if (gameInstance.timerInterval) {
+          clearInterval(gameInstance.timerInterval);
+          gameInstance.timerInterval = undefined;
+        }
+        if (gameInstance.state === "playing") {
+          endGame(gameInstance);
+        }
+      } else {
+        // Game ended early, clean up
+        console.log("Game ended early, cleaning up timer");
+        if (gameInstance.timerInterval) {
+          clearInterval(gameInstance.timerInterval);
+          gameInstance.timerInterval = undefined;
+        }
+      }
+    }, 1000);
+
+    // Backup timeout in case interval fails
     setTimeout(() => {
-      // Only end if game is still playing (might have ended early)
       if (gameInstance.state === "playing") {
+        if (gameInstance.timerInterval) {
+          clearInterval(gameInstance.timerInterval);
+          gameInstance.timerInterval = undefined;
+        }
         endGame(gameInstance);
       }
-    }, duration);
+    }, duration + 1000);  // Add 1 second buffer
   } catch (error) {
     console.error("Failed to start game:", error);
     // If game fails to start, notify both players
@@ -531,14 +584,36 @@ function endGame(gameInstance: GameInstance): void {
   gameInstance.state = "finished";        // Mark game as finished
   gameInstance.endTime = Date.now();      // Record when game ended
 
+  // Clean up any running timer interval
+  if (gameInstance.timerInterval) {
+    console.log("Cleaning up timer interval");
+    clearInterval(gameInstance.timerInterval);
+    gameInstance.timerInterval = undefined;
+  }
+
   try {
     // Ask the game to calculate final results (winner, scores, etc.)
     const result = gameInstance.game.endGame();
+
+    // Get the match this game belongs to
+    const match = activeMatches.get(gameInstance.matchId);
+    if (!match) {
+      console.error(`No match found for game ${gameInstance.id}`);
+      return;
+    }
+
+    // Update match scores if there was a winner (not a draw)
+    if (result.winnerId && !result.isDraw) {
+      const currentScore = match.matchScores.get(result.winnerId) || 0;
+      match.matchScores.set(result.winnerId, currentScore + 1);
+      console.log(`[MATCH SCORE] Player ${result.winnerId} won! Match scores:`, Array.from(match.matchScores.entries()));
+    }
 
     // Send customized results to each player
     gameInstance.game.players.forEach(player => {
       const isWinner = player.id === result.winnerId;  // Is this player the winner?
       const isDraw = result.isDraw;                     // Was it a tie?
+      const opponent = gameInstance.game.players.find(p => p.id !== player.id);
 
       // Send results with personalized perspective ("you" vs "opponent")
       player.socket.emit("game-end", {
@@ -546,9 +621,14 @@ function endGame(gameInstance: GameInstance): void {
         draw: isDraw,
         finalScores: {
           you: result.scores[player.id] || 0,  // This player's score
-          // Find opponent's score
-          opponent: result.scores[gameInstance.game.players.find(p => p.id !== player.id)?.id || ""] || 0
+          opponent: result.scores[opponent?.id || ""] || 0  // Opponent's score
         },
+        matchScores: {
+          you: match.matchScores.get(player.id) || 0,  // This player's match score
+          opponent: match.matchScores.get(opponent?.id || "") || 0  // Opponent's match score
+        },
+        currentGame: match.currentGameIndex + 1,  // Current game number (1-based)
+        totalGames: match.gameQueue.length,       // Total games in match
         gameData: result.gameData  // Any additional game-specific data
       });
     });

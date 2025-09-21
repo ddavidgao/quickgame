@@ -123,9 +123,15 @@ export class GameRegistry {
       throw new Error(`Cannot select ${count} unique games, only ${gameIds.length} available`);
     }
 
-    // Shuffle the array and take the first 'count' items
-    const shuffled = [...gameIds].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    // TEMPORARY: Force tic-tac-toe to always be the first game for testing
+    const result = ['tic-tac-toe'];
+    const otherGames = gameIds.filter(id => id !== 'tic-tac-toe');
+
+    // Shuffle the remaining games and add them
+    const shuffledOthers = [...otherGames].sort(() => Math.random() - 0.5);
+    result.push(...shuffledOthers.slice(0, count - 1));
+
+    return result.slice(0, count);
   }
 
   // ===== UTILITY METHODS =====

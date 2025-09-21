@@ -79,7 +79,8 @@ export class TicTacToeGame extends BaseGame {
     // Check if the game ended (win or draw)
     const result = this.checkGameEnd();
     if (result) {
-      setTimeout(() => this.endGame(), 100);  // Small delay to let UI update
+      // Mark the game as finished so server can detect it
+      this.state = "finished";
     }
   }
 

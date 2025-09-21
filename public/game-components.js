@@ -67,16 +67,20 @@ class TicTacToeComponent {
     }
 
     render() {
+        // FIXED: Moved status to header, removed from game area
         this.container.innerHTML = `
-            <div class="tic-tac-toe-board" id="tic-tac-toe-board">
-                ${Array(9).fill(0).map((_, i) => `<div class="cell" data-index="${i}"></div>`).join('')}
+            <div class="tic-tac-toe-container">
+                <div class="tic-tac-toe-board" id="tic-tac-toe-board">
+                    ${Array(9).fill(0).map((_, i) => `<div class="cell" data-index="${i}"></div>`).join('')}
+                </div>
             </div>
-            <p id="ttt-status">Your turn (X)</p>
         `;
 
         this.elements.board = this.container.querySelector('#tic-tac-toe-board');
-        this.elements.status = this.container.querySelector('#ttt-status');
+        this.elements.status = document.getElementById('game-status'); // FIXED: Use global status in header
         this.elements.cells = this.container.querySelectorAll('.cell');
+
+        console.log('FIXED: TTT render called, status element:', this.elements.status);
 
         this.elements.cells.forEach((cell, index) => {
             cell.addEventListener('click', () => this.handleCellClick(index));
@@ -90,17 +94,76 @@ class TicTacToeComponent {
         }
     }
 
+    initializeWithData(gameData) {
+        console.log('TicTacToe initializeWithData called with:', gameData);
+
+        // CRITICAL: Set player index first, before any other logic
+        if (gameData && gameData.hasOwnProperty('playerIndex')) {
+            this.playerIndex = gameData.playerIndex;
+            console.log(`TicTacToe: Player index set to ${this.playerIndex}`);
+        } else {
+            console.error('TicTacToe: No playerIndex found in gameData!');
+            return; // Don't proceed without player index
+        }
+
+        // Update the board with initial game state from server
+        if (gameData && gameData.gameData) {
+            console.log(`TicTacToe: Calling updateBoard with currentPlayer=${gameData.gameData.currentPlayer}, myPlayerIndex=${this.playerIndex}`);
+            this.updateBoard(gameData.gameData.board, gameData.gameData.currentPlayer);
+        } else {
+            console.log('TicTacToe: Waiting for initial game state from server');
+            // Keep the "Waiting for game to start..." status - no fallback logic
+        }
+    }
+
     updateBoard(board, currentPlayer) {
         this.elements.cells.forEach((cell, index) => {
-            cell.textContent = board[index] || '';
+            // Clear previous classes and content
+            cell.classList.remove('x', 'o');
+
+            // Add appropriate CSS class for background images AND fallback text
+            if (board[index] === 'X') {
+                cell.classList.add('x'); // Uses images/x.png
+                cell.textContent = 'X'; // Fallback if image doesn't load
+                cell.style.color = 'white';
+                cell.style.fontSize = '2rem';
+                cell.style.fontWeight = 'bold';
+                cell.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+            } else if (board[index] === 'O') {
+                cell.classList.add('o'); // Uses images/y.png
+                cell.textContent = 'O'; // Fallback if image doesn't load
+                cell.style.color = 'white';
+                cell.style.fontSize = '2rem';
+                cell.style.fontWeight = 'bold';
+                cell.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+            } else {
+                cell.textContent = ''; // Empty cell
+                cell.style.color = '';
+                cell.style.fontSize = '';
+                cell.style.fontWeight = '';
+                cell.style.textShadow = '';
+            }
+
             cell.classList.toggle('disabled', !!board[index]);
         });
 
-        const symbol = currentPlayer === 0 ? 'X' : 'O';
+        const currentPlayerSymbol = currentPlayer === 0 ? 'X' : 'O';
+        const mySymbol = this.playerIndex === 0 ? 'X' : 'O';
         const isYourTurn = currentPlayer === this.playerIndex;
-        this.elements.status.textContent = isYourTurn
-            ? `Your turn (${symbol})`
-            : `Opponent's turn (${symbol})`;
+
+        const statusText = isYourTurn
+            ? `Your turn (${mySymbol})`
+            : `Opponent's turn (${currentPlayerSymbol})`;
+
+        console.log(`TicTacToe updateBoard: currentPlayer=${currentPlayer}, myPlayerIndex=${this.playerIndex}, isYourTurn=${isYourTurn}, statusText="${statusText}"`);
+        console.log('FIXED: Setting status element:', this.elements.status, 'to:', statusText);
+
+        if (this.elements.status) {
+            this.elements.status.textContent = statusText;
+            console.log('FIXED: Status updated successfully to:', this.elements.status.textContent);
+        } else {
+            console.error('FIXED: Status element not found!');
+        }
     }
 
     cleanup() {

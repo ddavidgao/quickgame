@@ -15,11 +15,20 @@ class ModularQuickGame {
         this.currentGame = null;                // Current game data from server
         this.gameState = 'menu';                // Current app state (menu/game/results)
         this.currentGameComponent = null;       // Currently loaded game UI component
+        this.currentGameNumber = 1;             // Track current game number in match
+        this.totalGames = 3;                    // Total games per match (hardcoded default)
+        this.playerFinalScore = 0;              // Player's wins across all games in match
+        this.opponentFinalScore = 0;            // Opponent's wins across all games in match
 
         // ===== INITIALIZATION =====
         this.initializeElements();              // Cache DOM element references
         this.bindEvents();                      // Set up button click handlers
         this.bindSocketEvents();                // Set up server communication
+
+        // Set initial game progress display after DOM is fully loaded
+        setTimeout(() => {
+            this.updateGameProgress();
+        }, 100);
     }
 
     // ===== DOM ELEMENT CACHING =====
@@ -28,6 +37,8 @@ class ModularQuickGame {
         this.elements = {
             // Screen containers
             menuScreen: document.getElementById('menu-screen'),
+            matchFoundScreen: document.getElementById('match-found-screen'),
+            gameDescriptionScreen: document.getElementById('game-description-screen'),
             gameScreen: document.getElementById('game-screen'),
             resultsScreen: document.getElementById('results-screen'),
             disconnectScreen: document.getElementById('disconnect-screen'),
@@ -39,16 +50,33 @@ class ModularQuickGame {
             queueCount: document.getElementById('queue-count'),
             cancelQueueBtn: document.getElementById('cancel-queue-btn'),
 
+            // Final score elements
+            finalScoreDisplay: document.getElementById('final-score-display'),
+            playerFinalScoreSpan: document.getElementById('player-final-score'),
+            opponentFinalScoreSpan: document.getElementById('opponent-final-score'),
+
             // Game screen elements
             playerNameDisplay: document.getElementById('player-name-display'),
             opponentNameDisplay: document.getElementById('opponent-name-display'),
             playerScore: document.getElementById('player-match-score'),
             opponentScore: document.getElementById('opponent-match-score'),
             gameTimer: document.getElementById('game-timer'),
+            gameStatus: document.getElementById('game-status'),
             countdownDisplay: document.getElementById('countdown-display'),
 
             // Dynamic game area where game-specific UI is loaded
             gameArea: document.getElementById('game-area'),
+
+            // Match Found screen elements
+            yourNameDisplay: document.getElementById('your-name-display'),
+            opponentNameMatch: document.getElementById('opponent-name-match'),
+
+            // Game Description screen elements
+            gameNameDisplay: document.getElementById('game-name-display'),
+            gameDescriptionText: document.getElementById('game-description-text'),
+
+            // Game progress elements
+            currentGameSpan: document.getElementById('current-game'),
 
             // Results screen elements
             playAgainBtn: document.getElementById('ready-up-btn'),
@@ -72,7 +100,12 @@ class ModularQuickGame {
         this.elements.cancelQueueBtn.addEventListener('click', () => this.cancelQueue());
         this.elements.playAgainBtn.addEventListener('click', () => this.readyUp());
         this.elements.rageQuitBtn.addEventListener('click', () => this.rageQuit());
-        this.elements.mainMenuBtn.addEventListener('click', () => this.showScreen('menu'));
+        this.elements.mainMenuBtn.addEventListener('click', () => {
+            // If this is after a complete match, reset everything for a new match
+            this.resetFinalScores();
+            this.resetGame();
+            this.showScreen('menu');
+        });
         this.elements.disconnectMenuBtn.addEventListener('click', () => this.showScreen('menu'));
 
         this.elements.playerNameInput.addEventListener('keypress', (e) => {
@@ -95,16 +128,21 @@ class ModularQuickGame {
 
         this.socket.on('game-found', (data) => {
             this.currentGame = data;
-            this.elements.opponentNameDisplay.textContent = data.opponent;
-            this.showScreen('game');
             this.hideSearchingState();
 
             console.log(`Game found: ${data.gameName} (${data.gameType})`);
             console.log(`Description: ${data.description}`);
+
+            // NEW FLOW: Show Match Found screen first
+            this.showMatchFoundScreen(data);
         });
 
         this.socket.on('countdown', (count) => {
             this.showCountdown(count);
+        });
+
+        this.socket.on('timer-update', (timeLeft) => {
+            this.updateGameTimer(timeLeft);
         });
 
         this.socket.on('game-start', (data) => {
@@ -179,7 +217,8 @@ class ModularQuickGame {
         });
 
         this.socket.on('both-players-ready', () => {
-            console.log('Both players ready - starting next game');
+            console.log(`Both players ready - incrementing game from ${this.currentGameNumber} to ${this.currentGameNumber + 1}`);
+            this.currentGameNumber++;
             this.hideReadyStatus();
         });
 
@@ -279,6 +318,13 @@ class ModularQuickGame {
 
         if (screenName === 'menu') {
             this.resetGame();
+        } else if (screenName === 'results') {
+            // Clear game area when transitioning to results screen
+            this.elements.gameArea.innerHTML = '';
+            // Reset game status
+            if (this.elements.gameStatus) {
+                this.elements.gameStatus.textContent = 'Game Complete!';
+            }
         }
     }
 
@@ -291,8 +337,41 @@ class ModularQuickGame {
         this.elements.countdownDisplay.classList.add('hidden');
     }
 
+    updateGameTimer(timeLeft) {
+        console.log(`Timer update received: ${timeLeft} seconds`);
+
+        // Ensure we have a valid number
+        if (typeof timeLeft !== 'number' || timeLeft < 0) {
+            console.warn(`Invalid timer value: ${timeLeft}`);
+            return;
+        }
+
+        this.elements.gameTimer.textContent = timeLeft;
+
+        // Add visual warning when time is running low
+        if (timeLeft <= 5) {
+            this.elements.gameTimer.style.color = '#ff4444';
+            this.elements.gameTimer.style.animation = 'pulse 0.5s infinite';
+            this.elements.gameTimer.style.fontWeight = 'bold';
+            this.elements.gameTimer.style.transform = 'scale(1.1)';
+        } else if (timeLeft <= 10) {
+            this.elements.gameTimer.style.color = '#ffaa00';
+            this.elements.gameTimer.style.animation = '';
+            this.elements.gameTimer.style.fontWeight = 'bold';
+            this.elements.gameTimer.style.transform = 'scale(1.05)';
+        } else {
+            this.elements.gameTimer.style.color = '#FFF8DC';
+            this.elements.gameTimer.style.animation = '';
+            this.elements.gameTimer.style.fontWeight = 'bold';
+            this.elements.gameTimer.style.transform = 'scale(1)';
+        }
+    }
+
     startGame(gameType, gameData) {
         this.gameState = 'playing';
+
+        // Update game progress display
+        this.updateGameProgress();
 
         // Clear previous game component
         if (this.currentGameComponent && this.currentGameComponent.cleanup) {
@@ -328,15 +407,123 @@ class ModularQuickGame {
         }
     }
 
+    updateGameProgress() {
+        // Ensure totalGames is always 3 (hardcoded)
+        this.totalGames = 3;
+
+        console.log(`[DEBUG] updateGameProgress called: currentGameNumber=${this.currentGameNumber}, totalGames=${this.totalGames}`);
+
+        // Update the entire game progress display to ensure totalGames is correct
+        const gameProgress = document.getElementById('game-progress');
+
+        if (gameProgress) {
+            // Just update the current game number, keep /3 hardcoded in HTML
+            const currentGameSpan = document.getElementById('current-game');
+            if (currentGameSpan) {
+                currentGameSpan.textContent = this.currentGameNumber;
+                console.log(`[FIXED] Updated current game number to: ${this.currentGameNumber}`);
+            }
+        } else {
+            console.error('[FIXED] game-progress element not found!');
+        }
+    }
+
+    updateFinalScoreDisplay() {
+        console.log(`[DEBUG] updateFinalScoreDisplay: player=${this.playerFinalScore}, opponent=${this.opponentFinalScore}`);
+        console.log(`[DEBUG] playerFinalScoreSpan exists:`, !!this.elements.playerFinalScoreSpan);
+        console.log(`[DEBUG] opponentFinalScoreSpan exists:`, !!this.elements.opponentFinalScoreSpan);
+        console.log(`[DEBUG] finalScoreDisplay exists:`, !!this.elements.finalScoreDisplay);
+
+        if (this.elements.playerFinalScoreSpan) {
+            this.elements.playerFinalScoreSpan.textContent = this.playerFinalScore;
+            console.log(`[DEBUG] Set player final score span to: ${this.playerFinalScore}`);
+        }
+        if (this.elements.opponentFinalScoreSpan) {
+            this.elements.opponentFinalScoreSpan.textContent = this.opponentFinalScore;
+            console.log(`[DEBUG] Set opponent final score span to: ${this.opponentFinalScore}`);
+        }
+
+        // Show the final score display once we're in a game (even with 0-0 scores)
+        if (this.gameState !== 'menu') {
+            if (this.elements.finalScoreDisplay) {
+                this.elements.finalScoreDisplay.classList.remove('hidden');
+                console.log(`[DEBUG] Showing final score display - game state: ${this.gameState}`);
+            }
+        }
+    }
+
+    showFinalMatchResults() {
+        console.log(`[FINAL MATCH] Showing final results: ${this.playerFinalScore} - ${this.opponentFinalScore}`);
+
+        // Determine the overall match winner
+        let matchWinner = '';
+        let matchResult = '';
+
+        if (this.playerFinalScore > this.opponentFinalScore) {
+            matchWinner = 'YOU WIN THE MATCH!';
+            matchResult = '';
+        } else if (this.opponentFinalScore > this.playerFinalScore) {
+            matchWinner = 'YOU LOSE THE MATCH!';
+            matchResult = 'lose';
+        } else {
+            matchWinner = 'MATCH TIED!';
+            matchResult = 'draw';
+        }
+
+        // Update the results screen with final match information
+        if (this.elements.resultTitle) {
+            this.elements.resultTitle.textContent = matchWinner;
+            this.elements.resultTitle.className = matchResult;
+        }
+
+        // Show the final match scores instead of individual game scores
+        if (this.elements.finalYourScore) {
+            this.elements.finalYourScore.textContent = this.playerFinalScore;
+        }
+        if (this.elements.finalOpponentScore) {
+            this.elements.finalOpponentScore.textContent = this.opponentFinalScore;
+        }
+
+        // Hide ready up button and show main menu button instead
+        if (this.elements.readyUpBtn) {
+            this.elements.readyUpBtn.classList.add('hidden');
+        }
+        if (this.elements.rageQuitBtn) {
+            this.elements.rageQuitBtn.classList.add('hidden');
+        }
+        if (this.elements.mainMenuBtn) {
+            this.elements.mainMenuBtn.classList.remove('hidden');
+            this.elements.mainMenuBtn.textContent = 'New Match';
+        }
+
+        // Show the results screen
+        this.showScreen('results');
+    }
+
     endGame(data) {
         this.gameState = 'finished';
-
-        // Immediately clear the game area
-        this.elements.gameArea.innerHTML = '';
 
         let titleText = '';
         let titleClass = '';
 
+        // Use match scores from server instead of local tracking
+        if (data.matchScores) {
+            this.playerFinalScore = data.matchScores.you;
+            this.opponentFinalScore = data.matchScores.opponent;
+            console.log(`[FINAL SCORE] Server match scores: ${this.playerFinalScore}-${this.opponentFinalScore}`);
+            console.log(`[FINAL SCORE] Full match scores data:`, data.matchScores);
+        } else {
+            console.log(`[FINAL SCORE] No matchScores in data:`, data);
+        }
+
+        // Update game progress from server data
+        if (data.currentGame && data.totalGames) {
+            this.currentGameNumber = data.currentGame;
+            this.totalGames = data.totalGames;
+            console.log(`[GAME PROGRESS] Game ${this.currentGameNumber}/${this.totalGames}`);
+        }
+
+        // Set result title based on who won this individual game
         if (data.winner) {
             titleText = 'You Win!';
             titleClass = '';
@@ -348,25 +535,39 @@ class ModularQuickGame {
             titleClass = 'lose';
         }
 
+        // Update final score display
+        this.updateFinalScoreDisplay();
+
         if (this.elements.resultTitle) {
             this.elements.resultTitle.textContent = titleText;
             this.elements.resultTitle.className = titleClass;
         }
         if (this.elements.finalYourScore) {
-            this.elements.finalYourScore.textContent = data.finalScores.you;
+            this.elements.finalYourScore.textContent = this.playerFinalScore;
+            console.log(`[DEBUG] Set finalYourScore to: ${this.playerFinalScore}`);
+        } else {
+            console.log(`[DEBUG] finalYourScore element not found!`);
         }
         if (this.elements.finalOpponentScore) {
-            this.elements.finalOpponentScore.textContent = data.finalScores.opponent;
+            this.elements.finalOpponentScore.textContent = this.opponentFinalScore;
+            console.log(`[DEBUG] Set finalOpponentScore to: ${this.opponentFinalScore}`);
+        } else {
+            console.log(`[DEBUG] finalOpponentScore element not found!`);
         }
 
-        setTimeout(() => {
+        // Check if this was the final game (3 games completed)
+        if (this.currentGameNumber >= this.totalGames) {
+            console.log(`[FINAL MATCH] All ${this.totalGames} games completed!`);
+            this.showFinalMatchResults();
+        } else {
             this.showScreen('results');
-        }, 2000);
+        }
     }
 
     resetGame() {
         this.gameState = 'menu';
         this.currentGame = null;
+        this.currentGameNumber = 1;
 
         // Cleanup current game component
         if (this.currentGameComponent && this.currentGameComponent.cleanup) {
@@ -378,9 +579,27 @@ class ModularQuickGame {
         this.hideSearchingState();
         this.resetFindMatchButton();
         this.updateScores(0, 0);
+        this.updateGameProgress();
+
+        // Reset game status
+        if (this.elements.gameStatus) {
+            this.elements.gameStatus.textContent = 'Get Ready!';
+        }
 
         // Clear game area
         this.elements.gameArea.innerHTML = '';
+    }
+
+    resetFinalScores() {
+        console.log('[FINAL SCORE] Resetting final scores for new match');
+        this.playerFinalScore = 0;
+        this.opponentFinalScore = 0;
+        this.updateFinalScoreDisplay();
+
+        // Hide the final score display when starting fresh
+        if (this.elements.finalScoreDisplay) {
+            this.elements.finalScoreDisplay.classList.add('hidden');
+        }
     }
 
     showSearchingState() {
@@ -445,6 +664,65 @@ class ModularQuickGame {
         this.elements.queueStatus.classList.remove('hidden');
     }
 
+    // NEW: Show the "Match Found!" screen with player names
+    showMatchFoundScreen(gameData) {
+        // Set player names
+        this.elements.yourNameDisplay.textContent = this.playerName;
+        this.elements.opponentNameMatch.textContent = gameData.opponent;
+
+        // Show the match found screen
+        this.showScreen('match-found');
+
+        // After 3 seconds, show game description
+        setTimeout(() => {
+            this.showGameDescriptionScreen(gameData);
+        }, 3000);
+    }
+
+    // NEW: Show the game description screen
+    showGameDescriptionScreen(gameData) {
+        // Set game information
+        this.elements.gameNameDisplay.textContent = gameData.gameName;
+        this.elements.gameDescriptionText.textContent = gameData.description;
+
+        // Set game-specific icon
+        const gameIcon = document.querySelector('.game-icon');
+        if (gameIcon) {
+            gameIcon.textContent = this.getGameIcon(gameData.gameType);
+        }
+
+        // Show the game description screen
+        this.showScreen('game-description');
+
+        // After 3 seconds, proceed to game screen
+        setTimeout(() => {
+            this.proceedToGameScreen(gameData);
+        }, 3000);
+    }
+
+    // NEW: Get appropriate icon for each game type
+    getGameIcon(gameType) {
+        const icons = {
+            'tic-tac-toe': 'TTT',
+            'rock-paper-scissors': 'RPS',
+            'reaction-time': 'RT',
+            'whack-a-mole': 'WAM'
+        };
+        return icons[gameType] || 'GAME';
+    }
+
+    // NEW: Proceed to the actual game screen
+    proceedToGameScreen(gameData) {
+        // Set opponent name for game screen
+        this.elements.opponentNameDisplay.textContent = gameData.opponent;
+
+        // Show game screen
+        this.showScreen('game');
+
+        // Update game progress when game is found
+        this.updateGameProgress();
+    }
+
     resetFindMatchButton() {
         this.elements.findMatchBtn.disabled = false;
         this.elements.findMatchBtn.textContent = 'Find Match';
@@ -452,5 +730,12 @@ class ModularQuickGame {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    new ModularQuickGame();
+    console.log('[DEBUG] DOM fully loaded, creating ModularQuickGame');
+    const game = new ModularQuickGame();
+
+    // Force update after a short delay to ensure DOM is ready
+    setTimeout(() => {
+        console.log('[DEBUG] Forcing game progress update after DOM load');
+        game.updateGameProgress();
+    }, 500);
 });

@@ -29,7 +29,16 @@
         <div id="menu-screen" class="screen active">
             <div class="container">
                 <h1>QuickGame</h1>
-                <p>Real-time 1v1 mini-game battles</p>
+                <p>Real-time one-on-one mini-game battles</p>
+
+                <!-- Final Score Display -->
+                <div id="final-score-display" class="final-score-container hidden">
+                    <h3>Match Score</h3>
+                    <div class="final-score-row">
+                        <span id="player-final-score">0</span> - <span id="opponent-final-score">0</span>
+                    </div>
+                    <p class="final-score-label">Games Won</p>
+                </div>
 
                 <!-- Player name input section -->
                 <div class="input-group">
@@ -52,6 +61,36 @@
             </div>
         </div>
 
+        <!-- Match Found Screen -->
+        <div id="match-found-screen" class="screen">
+            <div class="container">
+                <div class="match-found-container">
+                    <h1 class="match-found-title">MATCH FOUND!</h1>
+                    <div class="vs-container">
+                        <div class="player-card">
+                            <div class="player-name" id="your-name-display">You</div>
+                        </div>
+                        <div class="vs-text">VS</div>
+                        <div class="player-card">
+                            <div class="player-name" id="opponent-name-match">Opponent</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Description Screen -->
+        <div id="game-description-screen" class="screen">
+            <div class="container">
+                <div class="game-description-container">
+                    <h1 id="game-name-display">Game Name</h1>
+                    <div class="game-icon">GAME</div>
+                    <p id="game-description-text">Game description goes here...</p>
+                    <div class="get-ready-text">Get Ready!</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Game Screen -->
         <div id="game-screen" class="screen">
             <div class="container">
@@ -62,6 +101,7 @@
                     </div>
                     <div class="match-info">
                         <div id="game-progress">Game <span id="current-game">1</span>/3</div>
+                        <div id="game-status">Get Ready!</div>
                         <div id="game-timer">30</div>
                     </div>
                     <div class="player-info">
@@ -88,9 +128,9 @@
                     <!-- Rock Paper Scissors Game -->
                     <div id="rps-game" class="game-type hidden">
                         <div class="rps-choices">
-                            <button class="rps-choice" data-choice="rock">ROCK</button>
-                            <button class="rps-choice" data-choice="paper">PAPER</button>
-                            <button class="rps-choice" data-choice="scissors">SCISSORS</button>
+                            <button class="rps-choice" data-choice="rock"></button>
+                            <button class="rps-choice" data-choice="paper"></button>
+                            <button class="rps-choice" data-choice="scissors"></button>
                         </div>
                         <div id="rps-status">Choose your weapon!</div>
                         <div id="rps-results" class="hidden">
