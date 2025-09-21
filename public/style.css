@@ -635,24 +635,25 @@ input[type="text"]:focus {
 }
 
 .rps-choice {
-    padding: 15px;
+    padding: 20px;
     font-weight: bold;
     font-family: 'SuperPixel', Arial, sans-serif;
     background: transparent;
     color: #5D4037;
     border: none;
-    border-radius: 0;
+    border-radius: 15px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    width: 90px;
-    height: 90px;
+    transition: all 0.3s ease;
+    width: 150px;
+    height: 150px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: none;
-    background-size: 90% 90%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    background-size: 85% 85%;
     background-repeat: no-repeat;
     background-position: center;
+    border: 3px solid rgba(255, 255, 255, 0.3);
 }
 
 .rps-choice[data-choice="rock"] {
@@ -668,9 +669,10 @@ input[type="text"]:focus {
 }
 
 .rps-choice:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    transform: scale(1.15);
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+    border-color: rgba(255, 215, 0, 0.6);
+    background-size: 90% 90%;
 }
 
 .rps-choice:disabled {
@@ -682,16 +684,143 @@ input[type="text"]:focus {
 }
 
 #rps-status {
-    font-size: 1.1rem;
-    margin-bottom: 15px;
-    font-family: Arial, sans-serif;
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
-.choice-display {
+/* Battle Arena Styles */
+.rps-battle-arena {
     display: flex;
-    justify-content: space-around;
-    font-size: 1.2rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px;
+    margin: 20px 0;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%);
+    border-radius: 20px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.battle-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.choice-label {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.choice-image {
+    width: 120px;
+    height: 120px;
+    background-size: 90% 90%;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 15px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.choice-image.rock {
+    background-image: url('images/rock.png');
+}
+
+.choice-image.paper {
+    background-image: url('images/paper.png');
+}
+
+.choice-image.scissors {
+    background-image: url('images/scissors.png');
+}
+
+.battle-vs {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    animation: vs-pulse 2s infinite;
+}
+
+@keyframes vs-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Battle Animations */
+.battle-enter-left {
+    animation: slide-in-left 0.8s ease-out;
+}
+
+.battle-enter-right {
+    animation: slide-in-right 0.8s ease-out;
+}
+
+.battle-winner {
+    animation: winner-celebration 1.5s ease-in-out infinite;
+    border-color: #FFD700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
+.battle-loser {
+    animation: loser-shake 0.5s ease-in-out;
+    opacity: 0.6;
+    filter: grayscale(0.5);
+}
+
+.battle-clash {
+    animation: clash-bounce 1s ease-in-out infinite;
+}
+
+@keyframes slide-in-left {
+    0% { transform: translateX(-200px) scale(0.5); opacity: 0; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+@keyframes slide-in-right {
+    0% { transform: translateX(200px) scale(0.5); opacity: 0; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+@keyframes winner-celebration {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    25% { transform: scale(1.1) rotate(-5deg); }
+    75% { transform: scale(1.1) rotate(5deg); }
+}
+
+@keyframes loser-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@keyframes clash-bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+#battle-result-text {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    text-align: center;
     margin-top: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
 }
 
 .mole-grid {

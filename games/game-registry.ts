@@ -117,21 +117,23 @@ export class GameRegistry {
   // Used to create a sequence of different games for a match
   static getRandomUniqueGameIds(count: number = 3): string[] {
     const gameIds = Array.from(this.games.keys());
+    const selectedGames: string[] = [];
 
-    // Make sure we don't request more games than we have
-    if (count > gameIds.length) {
-      throw new Error(`Cannot select ${count} unique games, only ${gameIds.length} available`);
+    // If we need more games than available, allow repeats
+    if (count >= gameIds.length) {
+      for (let i = 0; i < count; i++) {
+        selectedGames.push(gameIds[Math.floor(Math.random() * gameIds.length)]);
+      }
+    } else {
+      // Select unique games without repeats
+      const availableGames = [...gameIds];
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * availableGames.length);
+        selectedGames.push(availableGames.splice(randomIndex, 1)[0]);
+      }
     }
 
-    // TEMPORARY: Force reaction-time to always be the first game for testing
-    const result = ['reaction-time'];
-    const otherGames = gameIds.filter(id => id !== 'reaction-time');
-
-    // Shuffle the remaining games and add them
-    const shuffledOthers = [...otherGames].sort(() => Math.random() - 0.5);
-    result.push(...shuffledOthers.slice(0, count - 1));
-
-    return result.slice(0, count);
+    return selectedGames;
   }
 
   // ===== UTILITY METHODS =====

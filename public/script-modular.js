@@ -317,7 +317,16 @@ class ModularQuickGame {
         }
 
         if (screenName === 'menu') {
+            // Stop game music when returning to menu
+            if (window.soundManager) {
+                window.soundManager.stopGameMusic();
+            }
             this.resetGame();
+        } else if (screenName === 'disconnect') {
+            // Stop game music when showing disconnect screen
+            if (window.soundManager) {
+                window.soundManager.stopGameMusic();
+            }
         } else if (screenName === 'results') {
             // Clear game area when transitioning to results screen (unless skipGameAreaClear is set)
             console.log('[SHOW SCREEN] Results screen - skipGameAreaClear:', this.skipGameAreaClear);
@@ -336,6 +345,18 @@ class ModularQuickGame {
 
     showCountdown(count) {
         console.log(`[COUNTDOWN] Showing countdown: ${count}`);
+
+        // Play intense music when countdown starts (at 3)
+        console.log(`[COUNTDOWN DEBUG] count === 3: ${count === 3}, window.soundManager exists: ${!!window.soundManager}`);
+        if (count === 3) {
+            if (window.soundManager) {
+                console.log(`[COUNTDOWN] Triggering game music for countdown 3`);
+                window.soundManager.playGameMusic();
+            } else {
+                console.error(`[COUNTDOWN] window.soundManager not available!`);
+            }
+        }
+
         if (this.elements.countdownDisplay) {
             this.elements.countdownDisplay.classList.remove('hidden');
             const numberElement = this.elements.countdownDisplay.querySelector('.countdown-number');
@@ -536,6 +557,11 @@ class ModularQuickGame {
     }
 
     endGame(data) {
+        // Stop the intense game music when game ends
+        if (window.soundManager) {
+            window.soundManager.stopGameMusic();
+        }
+
         this.gameState = 'finished';
 
         // Use match scores from server instead of local tracking

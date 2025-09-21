@@ -239,18 +239,27 @@ class RockPaperScissorsComponent {
             </div>
             <div id="rps-status">Choose your weapon!</div>
             <div id="rps-results" class="hidden">
-                <div class="choice-display">
-                    <div>You: <span id="your-choice"></span></div>
-                    <div>Opponent: <span id="opponent-choice"></span></div>
+                <div class="rps-battle-arena">
+                    <div class="battle-choice your-battle-choice">
+                        <div class="choice-label">You</div>
+                        <div class="choice-image" id="your-choice-img"></div>
+                    </div>
+                    <div class="battle-vs">VS</div>
+                    <div class="battle-choice opponent-battle-choice">
+                        <div class="choice-label">Opponent</div>
+                        <div class="choice-image" id="opponent-choice-img"></div>
+                    </div>
                 </div>
+                <div id="battle-result-text"></div>
             </div>
         `;
 
         this.elements.choices = this.container.querySelectorAll('.rps-choice');
         this.elements.status = this.container.querySelector('#rps-status');
         this.elements.results = this.container.querySelector('#rps-results');
-        this.elements.yourChoice = this.container.querySelector('#your-choice');
-        this.elements.opponentChoice = this.container.querySelector('#opponent-choice');
+        this.elements.yourChoiceImg = this.container.querySelector('#your-choice-img');
+        this.elements.opponentChoiceImg = this.container.querySelector('#opponent-choice-img');
+        this.elements.battleResultText = this.container.querySelector('#battle-result-text');
 
         this.elements.choices.forEach(button => {
             button.addEventListener('click', () => this.handleChoice(button.dataset.choice));
@@ -283,22 +292,83 @@ class RockPaperScissorsComponent {
     }
 
     showRoundResult(data) {
-        this.elements.yourChoice.textContent = data.yourChoice.toUpperCase();
-        this.elements.opponentChoice.textContent = data.opponentChoice.toUpperCase();
+        // Set up the battle arena with choice images
+        this.elements.yourChoiceImg.className = `choice-image ${data.yourChoice}`;
+        this.elements.opponentChoiceImg.className = `choice-image ${data.opponentChoice}`;
+
         this.elements.results.classList.remove('hidden');
 
-        let resultText = '';
-        if (data.winner === 'you') resultText = 'You won this round!';
-        else if (data.winner === 'opponent') resultText = 'Opponent won this round!';
-        else resultText = 'This round is a draw!';
+        // Animate the battle sequence
+        this.animateBattle(data.yourChoice, data.opponentChoice, data.winner);
 
+        let resultText = '';
+        let explanation = '';
+
+        if (data.winner === 'you') {
+            resultText = '🎉 You won this round! 🎉';
+            explanation = this.getWinExplanation(data.yourChoice, data.opponentChoice);
+        } else if (data.winner === 'opponent') {
+            resultText = '😔 Opponent won this round!';
+            explanation = this.getWinExplanation(data.opponentChoice, data.yourChoice);
+        } else {
+            resultText = '🤝 This round is a draw!';
+            explanation = 'Same choice - try again!';
+        }
+
+        // Show initial result
         this.elements.status.textContent = resultText;
+
+        // Show explanation after a brief delay
+        setTimeout(() => {
+            this.elements.battleResultText.textContent = explanation;
+        }, 1000);
 
         setTimeout(() => {
             this.enableChoices();
             this.elements.status.textContent = 'Choose your weapon!';
             this.elements.results.classList.add('hidden');
-        }, 2000);
+            this.elements.battleResultText.textContent = '';
+        }, 3000);
+    }
+
+    animateBattle(yourChoice, opponentChoice, winner) {
+        const yourChoiceEl = this.elements.yourChoiceImg;
+        const opponentChoiceEl = this.elements.opponentChoiceImg;
+
+        // Reset animations
+        yourChoiceEl.classList.remove('battle-winner', 'battle-loser', 'battle-clash');
+        opponentChoiceEl.classList.remove('battle-winner', 'battle-loser', 'battle-clash');
+
+        // Add entrance animations
+        yourChoiceEl.classList.add('battle-enter-left');
+        opponentChoiceEl.classList.add('battle-enter-right');
+
+        setTimeout(() => {
+            // Remove entrance animations
+            yourChoiceEl.classList.remove('battle-enter-left');
+            opponentChoiceEl.classList.remove('battle-enter-right');
+
+            // Add result animations
+            if (winner === 'you') {
+                yourChoiceEl.classList.add('battle-winner');
+                opponentChoiceEl.classList.add('battle-loser');
+            } else if (winner === 'opponent') {
+                yourChoiceEl.classList.add('battle-loser');
+                opponentChoiceEl.classList.add('battle-winner');
+            } else {
+                yourChoiceEl.classList.add('battle-clash');
+                opponentChoiceEl.classList.add('battle-clash');
+            }
+        }, 800);
+    }
+
+    getWinExplanation(winnerChoice, loserChoice) {
+        const explanations = {
+            'rock-scissors': 'Rock crushes Scissors!',
+            'paper-rock': 'Paper covers Rock!',
+            'scissors-paper': 'Scissors cuts Paper!'
+        };
+        return explanations[`${winnerChoice}-${loserChoice}`] || '';
     }
 
     cleanup() {

@@ -21,27 +21,57 @@ class ReactionTimeComponent {
         this.container = gameContainer;
         this.socket = socket;
         this.elements = {};
+        this.playerIndex = 0; // Will be set by initializeWithData
+        this.reactionStartTime = 0;
+        this.counterInterval = null;
+        this.hasClicked = false;
     }
 
     render() {
-        this.container.innerHTML = `
-            <div class="reaction-zone" id="reaction-zone">
-                <div class="signal-light red" id="signal-light"></div>
-                <p id="reaction-instruction">Wait for GREEN...</p>
-            </div>
-        `;
+        // Use existing HTML structure instead of creating new one
+        const existingReactionGame = document.getElementById('reaction-game');
+        if (existingReactionGame) {
+            existingReactionGame.classList.remove('hidden');
 
-        this.elements.zone = this.container.querySelector('#reaction-zone');
-        this.elements.light = this.container.querySelector('#signal-light');
-        this.elements.instruction = this.container.querySelector('#reaction-instruction');
+            this.elements.zone = document.getElementById('reaction-zone');
+            this.elements.light = document.getElementById('signal-light');
+            this.elements.instruction = document.getElementById('reaction-instruction');
+            this.elements.counter = document.getElementById('reaction-counter');
 
-        this.elements.zone.addEventListener('click', () => this.handleClick());
+            if (this.elements.zone) {
+                this.elements.zone.addEventListener('click', () => this.handleClick());
+            }
+        } else {
+            // Fallback: create our own structure if static HTML not found
+            this.container.innerHTML = `
+                <div class="reaction-zone" id="reaction-zone">
+                    <div class="signal-light red" id="signal-light"></div>
+                    <p id="reaction-instruction">Wait for GREEN...</p>
+                    <div id="reaction-counter" class="reaction-counter hidden">0ms</div>
+                </div>
+            `;
+
+            this.elements.zone = this.container.querySelector('#reaction-zone');
+            this.elements.light = this.container.querySelector('#signal-light');
+            this.elements.instruction = this.container.querySelector('#reaction-instruction');
+            this.elements.counter = this.container.querySelector('#reaction-counter');
+
+            this.elements.zone.addEventListener('click', () => this.handleClick());
+        }
     }
 
     handleClick() {
-        if (this.elements.light.classList.contains('green')) {
+        if (this.elements.light.classList.contains('green') && !this.hasClicked) {
+            this.hasClicked = true;
             this.socket.emit('game-action', { type: 'click' });
             this.elements.instruction.textContent = 'Clicked!';
+
+            // Stop the counter and show final time
+            this.stopCounter();
+            const finalTime = Date.now() - this.reactionStartTime;
+            this.elements.counter.textContent = `${finalTime}ms`;
+            this.elements.counter.style.color = '#FFD700';
+            this.elements.counter.style.borderColor = '#FFD700';
         }
     }
 
@@ -49,10 +79,53 @@ class ReactionTimeComponent {
         this.elements.light.classList.remove('red');
         this.elements.light.classList.add('green');
         this.elements.instruction.textContent = 'CLICK NOW!';
+
+        // Start the real-time counter
+        this.startCounter();
+    }
+
+    startCounter() {
+        this.reactionStartTime = Date.now();
+        this.elements.counter.classList.remove('hidden');
+        this.elements.counter.style.color = '#00FF88';
+        this.elements.counter.style.borderColor = '#00FF88';
+
+        this.counterInterval = setInterval(() => {
+            if (!this.hasClicked) {
+                const elapsed = Date.now() - this.reactionStartTime;
+                this.elements.counter.textContent = `${elapsed}ms`;
+            }
+        }, 10); // Update every 10ms for smooth counter
+    }
+
+    stopCounter() {
+        if (this.counterInterval) {
+            clearInterval(this.counterInterval);
+            this.counterInterval = null;
+        }
+    }
+
+    initializeWithData(gameData) {
+        if (gameData && gameData.hasOwnProperty('playerIndex')) {
+            this.playerIndex = gameData.playerIndex;
+            console.log(`ReactionTime: Player index set to ${this.playerIndex}`);
+        }
     }
 
     cleanup() {
-        // Cleanup if needed
+        // Stop counter and hide the reaction game when switching games
+        this.stopCounter();
+        this.hasClicked = false;
+
+        const existingReactionGame = document.getElementById('reaction-game');
+        if (existingReactionGame) {
+            existingReactionGame.classList.add('hidden');
+        }
+
+        // Hide counter
+        if (this.elements.counter) {
+            this.elements.counter.classList.add('hidden');
+        }
     }
 }
 
@@ -63,11 +136,10 @@ class TicTacToeComponent {
         this.container = gameContainer;
         this.socket = socket;
         this.elements = {};
-        this.playerIndex = 0; // Will be set by game logic
+        this.playerIndex = 0; // Will be set by initializeWithData
     }
 
     render() {
-        // FIXED: Moved status to header, removed from game area
         this.container.innerHTML = `
             <div class="tic-tac-toe-container">
                 <div class="tic-tac-toe-board" id="tic-tac-toe-board">
@@ -77,10 +149,8 @@ class TicTacToeComponent {
         `;
 
         this.elements.board = this.container.querySelector('#tic-tac-toe-board');
-        this.elements.status = document.getElementById('game-status'); // FIXED: Use global status in header
+        this.elements.status = document.getElementById('game-status'); // Use global status
         this.elements.cells = this.container.querySelectorAll('.cell');
-
-        console.log('FIXED: TTT render called, status element:', this.elements.status);
 
         this.elements.cells.forEach((cell, index) => {
             cell.addEventListener('click', () => this.handleCellClick(index));
@@ -120,28 +190,13 @@ class TicTacToeComponent {
         this.elements.cells.forEach((cell, index) => {
             // Clear previous classes and content
             cell.classList.remove('x', 'o');
+            cell.textContent = '';
 
-            // Add appropriate CSS class for background images AND fallback text
+            // Add appropriate class for X or O (images will show via CSS)
             if (board[index] === 'X') {
-                cell.classList.add('x'); // Uses images/x.png
-                cell.textContent = 'X'; // Fallback if image doesn't load
-                cell.style.color = 'white';
-                cell.style.fontSize = '2rem';
-                cell.style.fontWeight = 'bold';
-                cell.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+                cell.classList.add('x');
             } else if (board[index] === 'O') {
-                cell.classList.add('o'); // Uses images/y.png
-                cell.textContent = 'O'; // Fallback if image doesn't load
-                cell.style.color = 'white';
-                cell.style.fontSize = '2rem';
-                cell.style.fontWeight = 'bold';
-                cell.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
-            } else {
-                cell.textContent = ''; // Empty cell
-                cell.style.color = '';
-                cell.style.fontSize = '';
-                cell.style.fontWeight = '';
-                cell.style.textShadow = '';
+                cell.classList.add('o');
             }
 
             cell.classList.toggle('disabled', !!board[index]);
@@ -156,14 +211,8 @@ class TicTacToeComponent {
             : `Opponent's turn (${currentPlayerSymbol})`;
 
         console.log(`TicTacToe updateBoard: currentPlayer=${currentPlayer}, myPlayerIndex=${this.playerIndex}, isYourTurn=${isYourTurn}, statusText="${statusText}"`);
-        console.log('FIXED: Setting status element:', this.elements.status, 'to:', statusText);
 
-        if (this.elements.status) {
-            this.elements.status.textContent = statusText;
-            console.log('FIXED: Status updated successfully to:', this.elements.status.textContent);
-        } else {
-            console.error('FIXED: Status element not found!');
-        }
+        this.elements.status.textContent = statusText;
     }
 
     cleanup() {
@@ -178,6 +227,7 @@ class RockPaperScissorsComponent {
         this.container = gameContainer;
         this.socket = socket;
         this.elements = {};
+        this.playerIndex = 0; // Will be set by initializeWithData
     }
 
     render() {
@@ -189,18 +239,27 @@ class RockPaperScissorsComponent {
             </div>
             <div id="rps-status">Choose your weapon!</div>
             <div id="rps-results" class="hidden">
-                <div class="choice-display">
-                    <div>You: <span id="your-choice"></span></div>
-                    <div>Opponent: <span id="opponent-choice"></span></div>
+                <div class="rps-battle-arena">
+                    <div class="battle-choice your-battle-choice">
+                        <div class="choice-label">You</div>
+                        <div class="choice-image" id="your-choice-img"></div>
+                    </div>
+                    <div class="battle-vs">VS</div>
+                    <div class="battle-choice opponent-battle-choice">
+                        <div class="choice-label">Opponent</div>
+                        <div class="choice-image" id="opponent-choice-img"></div>
+                    </div>
                 </div>
+                <div id="battle-result-text"></div>
             </div>
         `;
 
         this.elements.choices = this.container.querySelectorAll('.rps-choice');
         this.elements.status = this.container.querySelector('#rps-status');
         this.elements.results = this.container.querySelector('#rps-results');
-        this.elements.yourChoice = this.container.querySelector('#your-choice');
-        this.elements.opponentChoice = this.container.querySelector('#opponent-choice');
+        this.elements.yourChoiceImg = this.container.querySelector('#your-choice-img');
+        this.elements.opponentChoiceImg = this.container.querySelector('#opponent-choice-img');
+        this.elements.battleResultText = this.container.querySelector('#battle-result-text');
 
         this.elements.choices.forEach(button => {
             button.addEventListener('click', () => this.handleChoice(button.dataset.choice));
@@ -225,23 +284,91 @@ class RockPaperScissorsComponent {
         });
     }
 
+    initializeWithData(gameData) {
+        if (gameData && gameData.hasOwnProperty('playerIndex')) {
+            this.playerIndex = gameData.playerIndex;
+            console.log(`RockPaperScissors: Player index set to ${this.playerIndex}`);
+        }
+    }
+
     showRoundResult(data) {
-        this.elements.yourChoice.textContent = data.yourChoice.toUpperCase();
-        this.elements.opponentChoice.textContent = data.opponentChoice.toUpperCase();
+        // Set up the battle arena with choice images
+        this.elements.yourChoiceImg.className = `choice-image ${data.yourChoice}`;
+        this.elements.opponentChoiceImg.className = `choice-image ${data.opponentChoice}`;
+
         this.elements.results.classList.remove('hidden');
 
-        let resultText = '';
-        if (data.winner === 'you') resultText = 'You won this round!';
-        else if (data.winner === 'opponent') resultText = 'Opponent won this round!';
-        else resultText = 'This round is a draw!';
+        // Animate the battle sequence
+        this.animateBattle(data.yourChoice, data.opponentChoice, data.winner);
 
+        let resultText = '';
+        let explanation = '';
+
+        if (data.winner === 'you') {
+            resultText = '🎉 You won this round! 🎉';
+            explanation = this.getWinExplanation(data.yourChoice, data.opponentChoice);
+        } else if (data.winner === 'opponent') {
+            resultText = '😔 Opponent won this round!';
+            explanation = this.getWinExplanation(data.opponentChoice, data.yourChoice);
+        } else {
+            resultText = '🤝 This round is a draw!';
+            explanation = 'Same choice - try again!';
+        }
+
+        // Show initial result
         this.elements.status.textContent = resultText;
+
+        // Show explanation after a brief delay
+        setTimeout(() => {
+            this.elements.battleResultText.textContent = explanation;
+        }, 1000);
 
         setTimeout(() => {
             this.enableChoices();
             this.elements.status.textContent = 'Choose your weapon!';
             this.elements.results.classList.add('hidden');
-        }, 2000);
+            this.elements.battleResultText.textContent = '';
+        }, 3000);
+    }
+
+    animateBattle(yourChoice, opponentChoice, winner) {
+        const yourChoiceEl = this.elements.yourChoiceImg;
+        const opponentChoiceEl = this.elements.opponentChoiceImg;
+
+        // Reset animations
+        yourChoiceEl.classList.remove('battle-winner', 'battle-loser', 'battle-clash');
+        opponentChoiceEl.classList.remove('battle-winner', 'battle-loser', 'battle-clash');
+
+        // Add entrance animations
+        yourChoiceEl.classList.add('battle-enter-left');
+        opponentChoiceEl.classList.add('battle-enter-right');
+
+        setTimeout(() => {
+            // Remove entrance animations
+            yourChoiceEl.classList.remove('battle-enter-left');
+            opponentChoiceEl.classList.remove('battle-enter-right');
+
+            // Add result animations
+            if (winner === 'you') {
+                yourChoiceEl.classList.add('battle-winner');
+                opponentChoiceEl.classList.add('battle-loser');
+            } else if (winner === 'opponent') {
+                yourChoiceEl.classList.add('battle-loser');
+                opponentChoiceEl.classList.add('battle-winner');
+            } else {
+                yourChoiceEl.classList.add('battle-clash');
+                opponentChoiceEl.classList.add('battle-clash');
+            }
+        }, 800);
+    }
+
+    getWinExplanation(winnerChoice, loserChoice) {
+        const explanations = {
+            'rock-scissors': 'Rock crushes Scissors!',
+            'paper-rock': 'Paper covers Rock!',
+            'scissors-paper': 'Scissors cuts Paper!'
+        };
+        return explanations[`${winnerChoice}-${loserChoice}`] || '';
     }
 
     cleanup() {
@@ -256,6 +383,7 @@ class WhackAMoleComponent {
         this.container = gameContainer;
         this.socket = socket;
         this.elements = {};
+        this.playerIndex = 0; // Will be set by initializeWithData
     }
 
     render() {
@@ -299,6 +427,13 @@ class WhackAMoleComponent {
         this.elements.holes.forEach(hole => {
             hole.classList.remove('active');
         });
+    }
+
+    initializeWithData(gameData) {
+        if (gameData && gameData.hasOwnProperty('playerIndex')) {
+            this.playerIndex = gameData.playerIndex;
+            console.log(`WhackAMole: Player index set to ${this.playerIndex}`);
+        }
     }
 
     cleanup() {
