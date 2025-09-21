@@ -7,6 +7,7 @@ class SoundManager {
     constructor() {
         this.clickSound = null;
         this.gameMusic = null;
+        this.introMusic = null; // Intro music for queue waiting
         this.isEnabled = true;
         this.isLoaded = false;
         this.audioPool = []; // Pool of audio objects to prevent cutting off
@@ -33,18 +34,34 @@ class SoundManager {
             this.gameMusic.volume = 0.8; // Increased volume for better audibility
             this.gameMusic.loop = false; // Don't loop the intense music
 
+            // Initialize intro music for queue waiting
+            this.introMusic = new Audio('./sounds/intro.mp3');
+            this.introMusic.preload = 'auto';
+            this.introMusic.volume = 0.6; // Slightly lower volume for background music
+            this.introMusic.loop = true; // Loop the intro music during queue waiting
+
             // Add event listeners for debugging
-            this.gameMusic.addEventListener('loadstart', () => console.log('🎵 Music loading started'));
-            this.gameMusic.addEventListener('canplay', () => console.log('🎵 Music can start playing'));
-            this.gameMusic.addEventListener('canplaythrough', () => console.log('🎵 Music fully loaded'));
-            this.gameMusic.addEventListener('play', () => console.log('🎵 Music started playing'));
-            this.gameMusic.addEventListener('pause', () => console.log('🎵 Music paused'));
-            this.gameMusic.addEventListener('ended', () => console.log('🎵 Music ended'));
-            this.gameMusic.addEventListener('error', (e) => console.error('🎵 Music error:', e));
+            this.gameMusic.addEventListener('loadstart', () => console.log('🎵 Game music loading started'));
+            this.gameMusic.addEventListener('canplay', () => console.log('🎵 Game music can start playing'));
+            this.gameMusic.addEventListener('canplaythrough', () => console.log('🎵 Game music fully loaded'));
+            this.gameMusic.addEventListener('play', () => console.log('🎵 Game music started playing'));
+            this.gameMusic.addEventListener('pause', () => console.log('🎵 Game music paused'));
+            this.gameMusic.addEventListener('ended', () => console.log('🎵 Game music ended'));
+            this.gameMusic.addEventListener('error', (e) => console.error('🎵 Game music error:', e));
+
+            // Add event listeners for intro music debugging
+            this.introMusic.addEventListener('loadstart', () => console.log('🎶 Intro music loading started'));
+            this.introMusic.addEventListener('canplay', () => console.log('🎶 Intro music can start playing'));
+            this.introMusic.addEventListener('canplaythrough', () => console.log('🎶 Intro music fully loaded'));
+            this.introMusic.addEventListener('play', () => console.log('🎶 Intro music started playing'));
+            this.introMusic.addEventListener('pause', () => console.log('🎶 Intro music paused'));
+            this.introMusic.addEventListener('ended', () => console.log('🎶 Intro music ended'));
+            this.introMusic.addEventListener('error', (e) => console.error('🎶 Intro music error:', e));
 
             // Load the sounds and mark as ready
             await this.preloadSound();
             await this.preloadGameMusic();
+            await this.preloadIntroMusic();
             this.isLoaded = true;
             console.log('✅ Sound Manager initialized successfully');
 
@@ -89,6 +106,21 @@ class SoundManager {
         });
     }
 
+    async preloadIntroMusic() {
+        return new Promise((resolve, reject) => {
+            this.introMusic.addEventListener('canplaythrough', () => {
+                resolve();
+            }, { once: true });
+
+            this.introMusic.addEventListener('error', (e) => {
+                reject(e);
+            }, { once: true });
+
+            // Trigger loading
+            this.introMusic.load();
+        });
+    }
+
     playClick() {
         if (!this.isEnabled || !this.isLoaded) return;
 
@@ -129,6 +161,12 @@ class SoundManager {
                 console.warn('🎵 Failed to unlock music context:', error);
             });
         }
+
+        // Start intro music immediately when audio is unlocked
+        setTimeout(() => {
+            console.log('🎶 Starting intro music after audio unlock');
+            this.playIntroMusic();
+        }, 100);
     }
 
     setupGlobalListeners() {
@@ -247,8 +285,9 @@ class SoundManager {
         }
 
         try {
-            // Stop any currently playing music
+            // Stop any currently playing music (including intro music)
             this.stopGameMusic();
+            this.stopIntroMusic();
 
             // Reset and play the game music
             this.gameMusic.currentTime = 0;
@@ -274,6 +313,50 @@ class SoundManager {
         }
     }
 
+    // Play intro music when entering queue
+    playIntroMusic() {
+        console.log('🎶 playIntroMusic called - checking conditions...');
+        console.log(`🎶 isEnabled: ${this.isEnabled}, isLoaded: ${this.isLoaded}, userHasInteracted: ${this.userHasInteracted}`);
+
+        if (!this.isEnabled || !this.isLoaded || !this.introMusic) {
+            console.warn('🎶 Cannot play intro music - conditions not met');
+            return;
+        }
+
+        if (!this.userHasInteracted) {
+            console.warn('🎶 Cannot play intro music - user has not interacted yet (browser autoplay restriction)');
+            return;
+        }
+
+        try {
+            // Stop any currently playing music first
+            this.stopGameMusic();
+            this.stopIntroMusic(); // Stop existing intro music if already playing
+
+            // Reset and play the intro music
+            this.introMusic.currentTime = 0;
+            console.log('🎶 Attempting to play intro music...');
+
+            this.currentMusic = this.introMusic.play().then(() => {
+                console.log('🎶 ✅ Intro music started successfully!');
+            }).catch(error => {
+                console.error('🎶 ❌ Intro music play failed:', error);
+            });
+
+        } catch (error) {
+            console.error('🎶 Intro music playback error:', error);
+        }
+    }
+
+    // Stop the intro music
+    stopIntroMusic() {
+        if (this.introMusic && !this.introMusic.paused) {
+            this.introMusic.pause();
+            this.introMusic.currentTime = 0;
+            console.log('🎶 Stopped intro music');
+        }
+    }
+
     // Method to play specific sounds (for future expansion)
     playSound(soundName) {
         switch(soundName) {
@@ -283,6 +366,10 @@ class SoundManager {
             case 'gameStart':
             case 'intense':
                 this.playGameMusic();
+                break;
+            case 'intro':
+            case 'queue':
+                this.playIntroMusic();
                 break;
             default:
                 console.warn(`Unknown sound: ${soundName}`);

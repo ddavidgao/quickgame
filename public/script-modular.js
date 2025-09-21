@@ -28,6 +28,7 @@ class ModularQuickGame {
         // Set initial game progress display after DOM is fully loaded
         setTimeout(() => {
             this.updateGameProgress();
+            // Intro music will start automatically on first user interaction via sound manager
         }, 100);
     }
 
@@ -317,15 +318,18 @@ class ModularQuickGame {
         }
 
         if (screenName === 'menu') {
-            // Stop game music when returning to menu
+            // Stop game music and start intro music when returning to menu
             if (window.soundManager) {
                 window.soundManager.stopGameMusic();
+                console.log('🎶 Starting intro music for main menu');
+                window.soundManager.playIntroMusic();
             }
             this.resetGame();
         } else if (screenName === 'disconnect') {
-            // Stop game music when showing disconnect screen
+            // Stop all music when showing disconnect screen
             if (window.soundManager) {
                 window.soundManager.stopGameMusic();
+                window.soundManager.stopIntroMusic();
             }
         } else if (screenName === 'results') {
             // Clear game area when transitioning to results screen (unless skipGameAreaClear is set)
@@ -855,11 +859,15 @@ class ModularQuickGame {
         if (mainStatusText) {
             mainStatusText.textContent = 'Searching for opponent...';
         }
+
+        // Intro music should already be playing from menu, no need to restart
     }
 
     hideSearchingState() {
         this.elements.queueStatus.classList.add('hidden');
         this.resetFindMatchButton();
+
+        // Don't stop intro music when leaving queue - it should continue playing on menu
     }
 
     updateQueueStatus(queueSize, position) {
@@ -902,6 +910,12 @@ class ModularQuickGame {
 
     // NEW: Show the "Match Found!" screen with player names
     showMatchFoundScreen(gameData) {
+        // Stop intro music when match is found
+        if (window.soundManager) {
+            console.log('🎶 Stopping intro music - match found');
+            window.soundManager.stopIntroMusic();
+        }
+
         // Set player names
         this.elements.yourNameDisplay.textContent = this.playerName;
         this.elements.opponentNameMatch.textContent = gameData.opponent;
