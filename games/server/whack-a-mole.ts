@@ -15,7 +15,7 @@ export class WhackAMoleGame extends BaseGame {
     description: "Click the moles as fast as you can! Most hits wins!",  // Instructions
     minPlayers: 2,                                          // Exactly 2 players required
     maxPlayers: 2,
-    duration: 10000,                                        // 10 seconds of gameplay
+    duration: 30000,                                        // 30 seconds of gameplay
     category: "reaction"                                    // Reaction-based game category
   };
 
@@ -25,9 +25,10 @@ export class WhackAMoleGame extends BaseGame {
   initializeGameData(): GameData {
     return {
       moles: Array(9).fill(false),
-      activeMole: -1,
+      activeMoles: [], // Array of active mole positions
       scores: [0, 0],
-      hits: []
+      hits: [],
+      moleTimers: {} // Track individual mole timers
     };
   }
 
@@ -50,27 +51,8 @@ export class WhackAMoleGame extends BaseGame {
         return;
       }
 
-      // Hide current mole
-      if (this.gameData.activeMole !== -1) {
-        this.gameData.moles[this.gameData.activeMole] = false;
-      }
-
-      // Show new mole
-      const randomMole = Math.floor(Math.random() * 9);
-      this.gameData.activeMole = randomMole;
-      this.gameData.moles[randomMole] = true;
-
-      this.emitToPlayers("mole-appears", { position: randomMole });
-
-      // Hide mole after 1.5 seconds
-      setTimeout(() => {
-        if (this.gameData.activeMole === randomMole) {
-          this.gameData.moles[randomMole] = false;
-          this.gameData.activeMole = -1;
-          this.emitToPlayers("mole-disappears", { position: randomMole });
-        }
-      }, 1500);
-    }, 2000);
+      this.spawnMoleWave();
+    }, 1500); // Slower wave spawning to let moles accumulate
 
     // End game after duration
     this.gameTimeout = setTimeout(() => {
@@ -79,22 +61,92 @@ export class WhackAMoleGame extends BaseGame {
     }, this.config.duration);
   }
 
+  private spawnMoleWave(): void {
+    // Find available positions (not currently active)
+    const availablePositions = [];
+    for (let i = 0; i < 9; i++) {
+      if (!this.gameData.moles[i]) {
+        availablePositions.push(i);
+      }
+    }
+
+    if (availablePositions.length === 0) {
+      return;
+    }
+
+    // Spawn 2-4 moles simultaneously (challenge mode!) - NO LIMITS!
+    const numMolesToSpawn = Math.min(
+      2 + Math.floor(Math.random() * 3), // 2-4 moles
+      availablePositions.length
+      // REMOVED: 4 - this.gameData.activeMoles.length // No more artificial limits!
+    );
+
+    // Randomly select positions for this wave
+    const selectedPositions = [];
+    for (let i = 0; i < numMolesToSpawn; i++) {
+      const randomIndex = Math.floor(Math.random() * availablePositions.length);
+      selectedPositions.push(availablePositions.splice(randomIndex, 1)[0]);
+    }
+
+    // Calculate ONE duration for the entire wave so they all stay the same time
+    const waveDuration = Math.random() < 0.6
+      ? 5000 + Math.random() * 3000  // 60% chance: 5-8 seconds
+      : 4000 + Math.random() * 2000; // 40% chance: 4-6 seconds
+
+    console.log(`[MOLE WAVE] Spawning ${selectedPositions.length} moles for ${waveDuration}ms`);
+
+    // Spawn all moles in this wave with slight delays for more natural feel
+    selectedPositions.forEach((position, index) => {
+      setTimeout(() => {
+        this.spawnSingleMole(position, waveDuration);
+      }, index * 100); // 100ms delay between each mole in the wave
+    });
+  }
+
+  private spawnSingleMole(position: number, waveDuration: number): void {
+    if (this.gameData.moles[position] || this.state !== "playing") {
+      return; // Position already taken or game ended
+    }
+
+    // Show mole
+    this.gameData.moles[position] = true;
+    this.gameData.activeMoles.push(position);
+    this.emitToPlayers("mole-appears", { position });
+
+    console.log(`[MOLE SPAWN] Mole at position ${position} will stay for ${waveDuration}ms`);
+
+    // Hide mole after the wave duration (all moles in wave disappear together)
+    this.gameData.moleTimers[position] = setTimeout(() => {
+      this.hideMole(position);
+    }, waveDuration);
+  }
+
+  private hideMole(position: number): void {
+    if (this.gameData.moles[position]) {
+      this.gameData.moles[position] = false;
+      this.gameData.activeMoles = this.gameData.activeMoles.filter((pos: number) => pos !== position);
+      this.emitToPlayers("mole-disappears", { position });
+
+      // Clear the timer
+      if (this.gameData.moleTimers[position]) {
+        clearTimeout(this.gameData.moleTimers[position]);
+        delete this.gameData.moleTimers[position];
+      }
+    }
+  }
+
   handlePlayerAction(playerId: string, action: any): void {
     const playerIndex = this.players.findIndex(p => p.id === playerId);
     const { position } = action;
 
-    // Check if hit is valid
-    if (
-      position === this.gameData.activeMole &&
-      this.gameData.moles[position]
-    ) {
+    // Check if hit is valid (mole is active at this position)
+    if (this.gameData.moles[position] && this.gameData.activeMoles.includes(position)) {
       // Valid hit
       this.gameData.scores[playerIndex]++;
       this.players[playerIndex].score = this.gameData.scores[playerIndex];
 
       // Hide the mole immediately
-      this.gameData.moles[position] = false;
-      this.gameData.activeMole = -1;
+      this.hideMole(position);
 
       // Record the hit
       this.gameData.hits.push({
@@ -153,5 +205,11 @@ export class WhackAMoleGame extends BaseGame {
     if (this.gameTimeout) {
       clearTimeout(this.gameTimeout);
     }
+
+    // Clear all individual mole timers
+    Object.values(this.gameData.moleTimers).forEach((timer: any) => {
+      clearTimeout(timer);
+    });
+    this.gameData.moleTimers = {};
   }
 }

@@ -233,12 +233,16 @@ io.on("connection", (socket: Socket) => {
         console.log(`Game created successfully: ${gameConfig?.name}`);
 
         // Tell both players they found a match and what game they're playing
+        // First game is never sudden death (score is 0-0)
         opponent.socket.emit("game-found", {
           gameId: gameInstance.id,
           opponent: player.name,
           gameType: gameInstance.game.config.id,
           gameName: gameConfig?.name,
-          description: gameConfig?.description
+          description: gameConfig?.description,
+          currentGame: 1,
+          totalGames: match.gameQueue.length,
+          isSuddenDeath: false
         });
 
         socket.emit("game-found", {
@@ -246,7 +250,10 @@ io.on("connection", (socket: Socket) => {
           opponent: opponent.name,
           gameType: gameInstance.game.config.id,
           gameName: gameConfig?.name,
-          description: gameConfig?.description
+          description: gameConfig?.description,
+          currentGame: 1,
+          totalGames: match.gameQueue.length,
+          isSuddenDeath: false
         });
 
         // Start the countdown before the game begins
@@ -344,6 +351,16 @@ io.on("connection", (socket: Socket) => {
           const gameInstance = createGameInstanceForMatch(match);
           const gameConfig = GameRegistry.getGameConfig(gameInstance.game.config.id);
 
+          // Check for SUDDEN DEATH scenario (game 3 with 1-1 score)
+          const isGame3 = match.currentGameIndex + 1 === 3;
+          const player1Score = match.matchScores.get(match.players[0].id) || 0;
+          const player2Score = match.matchScores.get(match.players[1].id) || 0;
+          const isSuddenDeath = isGame3 && player1Score === 1 && player2Score === 1;
+
+          if (isSuddenDeath) {
+            console.log(`[SUDDEN DEATH] Game 3 with 1-1 score! This is the tiebreaker!`);
+          }
+
           // Notify both players
           match.players.forEach(player => {
             player.socket.emit("both-players-ready");
@@ -352,7 +369,10 @@ io.on("connection", (socket: Socket) => {
               opponent: match.players.find(p => p.id !== player.id)?.name,
               gameType: gameInstance.game.config.id,
               gameName: gameConfig?.name,
-              description: gameConfig?.description
+              description: gameConfig?.description,
+              currentGame: match.currentGameIndex + 1,
+              totalGames: match.gameQueue.length,
+              isSuddenDeath: isSuddenDeath // FLAG FOR SUDDEN DEATH!
             });
           });
 

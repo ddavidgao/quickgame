@@ -693,7 +693,7 @@ input[type="text"]:focus {
 
 .mole-hole {
     background-image: url('images/hole.png');
-    background-size: 90% 90%;
+    background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
     background-color: transparent;
@@ -703,6 +703,11 @@ input[type="text"]:focus {
     border: none;
     border-radius: 0;
     box-shadow: none;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mole-hole:hover {
@@ -710,18 +715,31 @@ input[type="text"]:focus {
     box-shadow: none;
 }
 
-.mole-hole.active {
+.mole-hole.active::after {
+    content: '';
+    position: absolute;
+    top: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    height: 85%;
     background-image: url('images/mole.png');
-    background-size: 90% 90%;
-    background-position: center;
-    animation: mole-pop 0.3s ease-out;
-    box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    animation: mole-emerge 0.4s ease-out;
+    z-index: 2;
 }
 
-@keyframes mole-pop {
-    0% { transform: scale(0.8); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
+@keyframes mole-emerge {
+    0% {
+        transform: translateX(-50%) translateY(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
 }
 
 /* Match Found Screen Styles */
@@ -864,6 +882,61 @@ input[type="text"]:focus {
     50% { opacity: 0.7; transform: scale(1.05); }
 }
 
+/* SUDDEN DEATH Animation Styles */
+.sudden-death-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: sudden-death-sequence 4s ease-out forwards;
+}
+
+.sudden-death-image {
+    width: 400px;
+    height: auto;
+    max-width: 80vw;
+    transform: translateY(-100vh);
+    animation: sudden-death-slide 2s ease-out 0.5s forwards;
+    filter: drop-shadow(0 20px 40px rgba(255, 0, 0, 0.5));
+}
+
+@keyframes sudden-death-sequence {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes sudden-death-slide {
+    0% {
+        transform: translateY(-100vh) scale(0.5);
+        opacity: 0;
+    }
+    50% {
+        transform: translateY(0) scale(1.1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Mobile responsive sudden death */
+@media (max-width: 768px) {
+    .sudden-death-image {
+        width: 300px;
+        max-width: 90vw;
+    }
+}
+
 .final-scores {
     font-size: 2.2rem;
     margin: 30px 0;
@@ -888,6 +961,17 @@ input[type="text"]:focus {
 
 #result-title.draw {
     color: #FFC107;
+}
+
+#result-title.victory {
+    color: #4CAF50;
+    text-shadow: 0 0 25px rgba(76, 175, 80, 0.8);
+    animation: victory-pulse 2s ease-in-out infinite;
+}
+
+@keyframes victory-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 .ready-indicators {

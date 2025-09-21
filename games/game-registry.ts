@@ -123,9 +123,9 @@ export class GameRegistry {
       throw new Error(`Cannot select ${count} unique games, only ${gameIds.length} available`);
     }
 
-    // TEMPORARY: Force tic-tac-toe to always be the first game for testing
-    const result = ['tic-tac-toe'];
-    const otherGames = gameIds.filter(id => id !== 'tic-tac-toe');
+    // TEMPORARY: Force whack-a-mole to always be the first game for testing
+    const result = ['whack-a-mole'];
+    const otherGames = gameIds.filter(id => id !== 'whack-a-mole');
 
     // Shuffle the remaining games and add them
     const shuffledOthers = [...otherGames].sort(() => Math.random() - 0.5);

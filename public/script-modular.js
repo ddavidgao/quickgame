@@ -455,18 +455,27 @@ class ModularQuickGame {
     showFinalMatchResults() {
         console.log(`[FINAL MATCH] Showing final results: ${this.playerFinalScore} - ${this.opponentFinalScore}`);
 
-        // Determine the overall match winner
+        // Determine the overall match winner with more dramatic text
         let matchWinner = '';
         let matchResult = '';
 
         if (this.playerFinalScore > this.opponentFinalScore) {
-            matchWinner = 'YOU WIN THE MATCH!';
-            matchResult = '';
+            if (this.playerFinalScore === 2 && this.opponentFinalScore === 0) {
+                matchWinner = 'PERFECT VICTORY!';
+            } else {
+                matchWinner = 'MATCH VICTORY!';
+            }
+            matchResult = 'victory';
         } else if (this.opponentFinalScore > this.playerFinalScore) {
-            matchWinner = 'YOU LOSE THE MATCH!';
+            if (this.opponentFinalScore === 2 && this.playerFinalScore === 0) {
+                matchWinner = 'CRUSHING DEFEAT!';
+            } else {
+                matchWinner = 'MATCH DEFEAT!';
+            }
             matchResult = 'lose';
         } else {
-            matchWinner = 'MATCH TIED!';
+            // This happens when sudden death ends in a draw
+            matchWinner = 'EPIC DRAW!';
             matchResult = 'draw';
         }
 
@@ -484,17 +493,23 @@ class ModularQuickGame {
             this.elements.finalOpponentScore.textContent = this.opponentFinalScore;
         }
 
-        // Hide ready up button and show main menu button instead
+        // Hide ready up and rage quit buttons
         if (this.elements.readyUpBtn) {
             this.elements.readyUpBtn.classList.add('hidden');
         }
         if (this.elements.rageQuitBtn) {
             this.elements.rageQuitBtn.classList.add('hidden');
         }
+
+        // Show the return home button
         if (this.elements.mainMenuBtn) {
             this.elements.mainMenuBtn.classList.remove('hidden');
-            this.elements.mainMenuBtn.textContent = 'New Match';
+            this.elements.mainMenuBtn.textContent = 'Return Home';
+            this.elements.mainMenuBtn.style.fontSize = '1.2rem';
+            this.elements.mainMenuBtn.style.backgroundColor = '#4CAF50';
         }
+
+        console.log(`[FINAL MATCH] ${matchWinner} Final score: ${this.playerFinalScore}-${this.opponentFinalScore}`);
 
         // Show the results screen
         this.showScreen('results');
@@ -512,6 +527,16 @@ class ModularQuickGame {
             this.opponentFinalScore = data.matchScores.opponent;
             console.log(`[FINAL SCORE] Server match scores: ${this.playerFinalScore}-${this.opponentFinalScore}`);
             console.log(`[FINAL SCORE] Full match scores data:`, data.matchScores);
+
+            // CHECK FOR 1-1 SUDDEN DEATH TRIGGER!
+            if (this.playerFinalScore === 1 && this.opponentFinalScore === 1 && data.currentGame === 2) {
+                console.log('[SUDDEN DEATH TRIGGER] Score is 1-1 after game 2! Next game is sudden death!');
+
+                // Show sudden death animation immediately
+                setTimeout(() => {
+                    this.showSuddenDeathAnimation();
+                }, 1000); // Show after results screen appears
+            }
         } else {
             console.log(`[FINAL SCORE] No matchScores in data:`, data);
         }
@@ -681,9 +706,28 @@ class ModularQuickGame {
 
     // NEW: Show the game description screen
     showGameDescriptionScreen(gameData) {
-        // Set game information
-        this.elements.gameNameDisplay.textContent = gameData.gameName;
-        this.elements.gameDescriptionText.textContent = gameData.description;
+        // Set game information - modify for sudden death
+        if (gameData.isSuddenDeath) {
+            this.elements.gameNameDisplay.textContent = `${gameData.gameName} - SUDDEN DEATH!`;
+            this.elements.gameDescriptionText.textContent = `TIEBREAKER ROUND! Score is 1-1. ${gameData.description} Winner takes the match!`;
+
+            // Update the "Get Ready" text for sudden death
+            const getReadyText = document.querySelector('.get-ready-text');
+            if (getReadyText) {
+                getReadyText.textContent = 'PREPARE FOR SUDDEN DEATH!';
+                getReadyText.style.color = '#ff6b6b'; // Red color for urgency
+            }
+        } else {
+            this.elements.gameNameDisplay.textContent = gameData.gameName;
+            this.elements.gameDescriptionText.textContent = gameData.description;
+
+            // Reset get ready text
+            const getReadyText = document.querySelector('.get-ready-text');
+            if (getReadyText) {
+                getReadyText.textContent = 'Get Ready!';
+                getReadyText.style.color = '#FFD700'; // Reset to gold
+            }
+        }
 
         // Set game-specific icon
         const gameIcon = document.querySelector('.game-icon');
@@ -694,10 +738,57 @@ class ModularQuickGame {
         // Show the game description screen
         this.showScreen('game-description');
 
+        // Check for SUDDEN DEATH and show epic animation!
+        if (gameData.isSuddenDeath) {
+            console.log('[SUDDEN DEATH] This is the tiebreaker! Showing epic animation!');
+            this.showSuddenDeathAnimation();
+        }
+
         // After 3 seconds, proceed to game screen
         setTimeout(() => {
             this.proceedToGameScreen(gameData);
         }, 3000);
+    }
+
+    // NEW: SUDDEN DEATH Animation - Epic entrance for the tiebreaker!
+    showSuddenDeathAnimation() {
+        console.log('[SUDDEN DEATH] Starting animation! Image path: images/suddendeath.png');
+
+        // Create the overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'sudden-death-overlay';
+
+        // Create the image
+        const img = document.createElement('img');
+        img.src = 'images/suddendeath.png';
+        img.className = 'sudden-death-image';
+        img.alt = 'SUDDEN DEATH';
+
+        // Add error handling for the image
+        img.onload = () => {
+            console.log('[SUDDEN DEATH] Image loaded successfully!');
+        };
+        img.onerror = () => {
+            console.error('[SUDDEN DEATH] Failed to load image: images/suddendeath.png');
+            console.log('[SUDDEN DEATH] Trying fallback text...');
+            img.style.display = 'none';
+            overlay.innerHTML = '<div style="color: red; font-size: 4rem; font-weight: bold; text-shadow: 0 0 20px red;">SUDDEN DEATH!</div>';
+        };
+
+        overlay.appendChild(img);
+        document.body.appendChild(overlay);
+
+        console.log('[SUDDEN DEATH] Overlay added to DOM, animation should start');
+
+        // Remove the overlay after animation completes
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+                console.log('[SUDDEN DEATH] Animation overlay removed');
+            }
+        }, 4000); // Match the animation duration
+
+        console.log('[SUDDEN DEATH] Epic animation displayed! The stakes are HIGH!');
     }
 
     // NEW: Get appropriate icon for each game type
