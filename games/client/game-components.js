@@ -22,27 +22,56 @@ class ReactionTimeComponent {
         this.socket = socket;
         this.elements = {};
         this.playerIndex = 0; // Will be set by initializeWithData
+        this.reactionStartTime = 0;
+        this.counterInterval = null;
+        this.hasClicked = false;
     }
 
     render() {
-        this.container.innerHTML = `
-            <div class="reaction-zone" id="reaction-zone">
-                <div class="signal-light red" id="signal-light"></div>
-                <p id="reaction-instruction">Wait for GREEN...</p>
-            </div>
-        `;
+        // Use existing HTML structure instead of creating new one
+        const existingReactionGame = document.getElementById('reaction-game');
+        if (existingReactionGame) {
+            existingReactionGame.classList.remove('hidden');
 
-        this.elements.zone = this.container.querySelector('#reaction-zone');
-        this.elements.light = this.container.querySelector('#signal-light');
-        this.elements.instruction = this.container.querySelector('#reaction-instruction');
+            this.elements.zone = document.getElementById('reaction-zone');
+            this.elements.light = document.getElementById('signal-light');
+            this.elements.instruction = document.getElementById('reaction-instruction');
+            this.elements.counter = document.getElementById('reaction-counter');
 
-        this.elements.zone.addEventListener('click', () => this.handleClick());
+            if (this.elements.zone) {
+                this.elements.zone.addEventListener('click', () => this.handleClick());
+            }
+        } else {
+            // Fallback: create our own structure if static HTML not found
+            this.container.innerHTML = `
+                <div class="reaction-zone" id="reaction-zone">
+                    <div class="signal-light red" id="signal-light"></div>
+                    <p id="reaction-instruction">Wait for GREEN...</p>
+                    <div id="reaction-counter" class="reaction-counter hidden">0ms</div>
+                </div>
+            `;
+
+            this.elements.zone = this.container.querySelector('#reaction-zone');
+            this.elements.light = this.container.querySelector('#signal-light');
+            this.elements.instruction = this.container.querySelector('#reaction-instruction');
+            this.elements.counter = this.container.querySelector('#reaction-counter');
+
+            this.elements.zone.addEventListener('click', () => this.handleClick());
+        }
     }
 
     handleClick() {
-        if (this.elements.light.classList.contains('green')) {
+        if (this.elements.light.classList.contains('green') && !this.hasClicked) {
+            this.hasClicked = true;
             this.socket.emit('game-action', { type: 'click' });
             this.elements.instruction.textContent = 'Clicked!';
+
+            // Stop the counter and show final time
+            this.stopCounter();
+            const finalTime = Date.now() - this.reactionStartTime;
+            this.elements.counter.textContent = `${finalTime}ms`;
+            this.elements.counter.style.color = '#FFD700';
+            this.elements.counter.style.borderColor = '#FFD700';
         }
     }
 
@@ -50,6 +79,30 @@ class ReactionTimeComponent {
         this.elements.light.classList.remove('red');
         this.elements.light.classList.add('green');
         this.elements.instruction.textContent = 'CLICK NOW!';
+
+        // Start the real-time counter
+        this.startCounter();
+    }
+
+    startCounter() {
+        this.reactionStartTime = Date.now();
+        this.elements.counter.classList.remove('hidden');
+        this.elements.counter.style.color = '#00FF88';
+        this.elements.counter.style.borderColor = '#00FF88';
+
+        this.counterInterval = setInterval(() => {
+            if (!this.hasClicked) {
+                const elapsed = Date.now() - this.reactionStartTime;
+                this.elements.counter.textContent = `${elapsed}ms`;
+            }
+        }, 10); // Update every 10ms for smooth counter
+    }
+
+    stopCounter() {
+        if (this.counterInterval) {
+            clearInterval(this.counterInterval);
+            this.counterInterval = null;
+        }
     }
 
     initializeWithData(gameData) {
@@ -60,7 +113,19 @@ class ReactionTimeComponent {
     }
 
     cleanup() {
-        // Cleanup if needed
+        // Stop counter and hide the reaction game when switching games
+        this.stopCounter();
+        this.hasClicked = false;
+
+        const existingReactionGame = document.getElementById('reaction-game');
+        if (existingReactionGame) {
+            existingReactionGame.classList.add('hidden');
+        }
+
+        // Hide counter
+        if (this.elements.counter) {
+            this.elements.counter.classList.add('hidden');
+        }
     }
 }
 

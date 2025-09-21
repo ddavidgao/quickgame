@@ -15,7 +15,7 @@ export class ReactionTimeGame extends BaseGame {
     description: "Click as fast as you can when the light turns green!",  // Instructions
     minPlayers: 2,                                           // Exactly 2 players required
     maxPlayers: 2,
-    duration: 10000,                                         // 10 seconds max (usually ends much faster)
+    duration: 15000,                                         // 15 seconds total for entire game
     category: "reaction"                                     // Game category for grouping
   };
 
@@ -28,8 +28,11 @@ export class ReactionTimeGame extends BaseGame {
   initializeGameData(): GameData {
     return {
       startSignal: false,                                   // Whether the green light is showing
-      reactionDelay: Math.random() * 3000 + 2000,         // Random delay: 2-5 seconds before green light
-      playerClicks: {}                                     // Store when each player clicked
+      reactionDelay: Math.random() * 4000 + 4000,         // Random delay: 4-8 seconds before green light
+      playerClicks: {},                                    // Store when each player clicked
+      greenLightStartTime: 0,                              // When the green light appeared
+      bothPlayersClicked: false,                           // Track if both players have clicked
+      resultsDelay: 5000                                   // 5 second delay before showing results
     };
   }
 
@@ -50,8 +53,10 @@ export class ReactionTimeGame extends BaseGame {
     this.reactionTimeout = setTimeout(() => {
       // Only trigger if game is still running (player might have disconnected)
       if (this.state === "playing") {
-        this.gameData.startSignal = true;        // Mark that green light is now on
-        this.emitToPlayers("start-signal", {});  // Tell clients to show green light
+        this.gameData.startSignal = true;                     // Mark that green light is now on
+        this.gameData.greenLightStartTime = Date.now();       // Record exactly when green light appeared
+        this.emitToPlayers("start-signal", {});               // Tell clients to show green light
+        console.log(`[REACTION TIME] Green light appeared at: ${this.gameData.greenLightStartTime}`);
       }
     }, this.gameData.reactionDelay);  // Wait the random delay before showing green
   }
@@ -62,22 +67,39 @@ export class ReactionTimeGame extends BaseGame {
   handlePlayerAction(playerId: string, action: any): void {
     // Ignore clicks if:
     // 1. Green light hasn't appeared yet, OR
-    // 2. This player already clicked
-    if (!this.gameData.startSignal || this.gameData.playerClicks[playerId]) {
+    // 2. This player already clicked, OR
+    // 3. Both players already clicked
+    if (!this.gameData.startSignal || this.gameData.playerClicks[playerId] || this.gameData.bothPlayersClicked) {
       return;
     }
 
     // Record exactly when this player clicked
-    this.gameData.playerClicks[playerId] = Date.now();
+    const clickTime = Date.now();
+    this.gameData.playerClicks[playerId] = clickTime;
 
-    // Give this player 1 point for clicking
-    const player = this.players.find(p => p.id === playerId);
-    if (player) {
-      player.score = 1;
+    // Calculate reaction time in milliseconds
+    const reactionTime = clickTime - this.gameData.greenLightStartTime;
+    console.log(`[REACTION TIME] Player ${playerId} clicked after ${reactionTime}ms`);
+
+    // Notify all players of this click
+    this.emitToPlayers("player-clicked", {
+      playerId,
+      reactionTime,
+      totalClicks: Object.keys(this.gameData.playerClicks).length
+    });
+
+    // Check if both players have now clicked
+    if (Object.keys(this.gameData.playerClicks).length === 2) {
+      this.gameData.bothPlayersClicked = true;
+      console.log(`[REACTION TIME] Both players clicked! Waiting ${this.gameData.resultsDelay}ms before showing results...`);
+
+      // Wait 5 seconds before ending the game
+      setTimeout(() => {
+        if (this.state === "playing") {
+          this.endGame();
+        }
+      }, this.gameData.resultsDelay);
     }
-
-    // End the game immediately - first click wins
-    this.endGame();
   }
 
   // ===== GAME END LOGIC =====
@@ -86,16 +108,23 @@ export class ReactionTimeGame extends BaseGame {
   checkGameEnd(): GameResult | null {
     const clickedPlayers = Object.keys(this.gameData.playerClicks);
 
-    // If anyone clicked after the green light
-    if (clickedPlayers.length > 0) {
-      // Find the fastest player (earliest timestamp)
-      let fastestPlayerId = clickedPlayers[0];
-      let fastestTime = this.gameData.playerClicks[fastestPlayerId];
+    // Calculate reaction times for all players who clicked
+    const reactionTimes: { [playerId: string]: number } = {};
+    for (const playerId of clickedPlayers) {
+      reactionTimes[playerId] = this.gameData.playerClicks[playerId] - this.gameData.greenLightStartTime;
+    }
 
-      // Check all players who clicked to find the fastest
+    console.log(`[REACTION TIME] Final reaction times:`, reactionTimes);
+
+    // If both players clicked
+    if (clickedPlayers.length === 2) {
+      // Find the fastest player (lowest reaction time)
+      let fastestPlayerId = clickedPlayers[0];
+      let fastestReactionTime = reactionTimes[fastestPlayerId];
+
       for (const playerId of clickedPlayers) {
-        if (this.gameData.playerClicks[playerId] < fastestTime) {
-          fastestTime = this.gameData.playerClicks[playerId];
+        if (reactionTimes[playerId] < fastestReactionTime) {
+          fastestReactionTime = reactionTimes[playerId];
           fastestPlayerId = playerId;
         }
       }
@@ -106,12 +135,38 @@ export class ReactionTimeGame extends BaseGame {
         scores[player.id] = player.id === fastestPlayerId ? 1 : 0;
       });
 
+      console.log(`[REACTION TIME] Winner: ${fastestPlayerId} with ${fastestReactionTime}ms`);
+
       return {
         winnerId: fastestPlayerId,
         isDraw: false,
         scores,
         gameData: {
-          reactionTimes: this.gameData.playerClicks  // Include reaction time data
+          reactionTimes,                    // Reaction times in milliseconds
+          fastestTime: fastestReactionTime, // Winner's time
+          greenLightStartTime: this.gameData.greenLightStartTime
+        }
+      };
+    }
+
+    // If only one player clicked
+    if (clickedPlayers.length === 1) {
+      const clickedPlayerId = clickedPlayers[0];
+      const scores: { [playerId: string]: number } = {};
+      this.players.forEach(player => {
+        scores[player.id] = player.id === clickedPlayerId ? 1 : 0;
+      });
+
+      console.log(`[REACTION TIME] Only one player clicked: ${clickedPlayerId} with ${reactionTimes[clickedPlayerId]}ms`);
+
+      return {
+        winnerId: clickedPlayerId,
+        isDraw: false,
+        scores,
+        gameData: {
+          reactionTimes,
+          fastestTime: reactionTimes[clickedPlayerId],
+          onlyOneClicked: true
         }
       };
     }
@@ -122,9 +177,15 @@ export class ReactionTimeGame extends BaseGame {
       scores[player.id] = 0;  // Both players get 0 points
     });
 
+    console.log(`[REACTION TIME] No one clicked - draw`);
+
     return {
       isDraw: true,
-      scores
+      scores,
+      gameData: {
+        reactionTimes: {},
+        noClicks: true
+      }
     };
   }
 

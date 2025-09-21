@@ -15,7 +15,7 @@ export class WhackAMoleGame extends BaseGame {
     description: "Click the moles as fast as you can! Most hits wins!",  // Instructions
     minPlayers: 2,                                          // Exactly 2 players required
     maxPlayers: 2,
-    duration: 30000,                                        // 30 seconds of gameplay
+    duration: 25000,                                        // 25 seconds of gameplay
     category: "reaction"                                    // Reaction-based game category
   };
 
@@ -54,11 +54,7 @@ export class WhackAMoleGame extends BaseGame {
       this.spawnMoleWave();
     }, 1500); // Slower wave spawning to let moles accumulate
 
-    // End game after duration
-    this.gameTimeout = setTimeout(() => {
-      this.cleanup();
-      this.endGame();
-    }, this.config.duration);
+    // Game will be ended by server timer - no need for internal timeout
   }
 
   private spawnMoleWave(): void {

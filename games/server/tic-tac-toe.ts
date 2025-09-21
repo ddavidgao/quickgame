@@ -15,7 +15,7 @@ export class TicTacToeGame extends BaseGame {
     description: "Classic 3x3 grid game - get three in a row!",  // Instructions
     minPlayers: 2,                                       // Exactly 2 players required
     maxPlayers: 2,
-    duration: 60000,                                     // 60 seconds max (1 minute)
+    duration: 30000,                                     // 30 seconds max
     category: "strategy"                                 // Strategy game category
   };
 

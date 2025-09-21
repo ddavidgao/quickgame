@@ -342,7 +342,7 @@ input[type="text"]:focus {
     margin-bottom: 8px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.6) !important;
     font-weight: 600 !important;
-    font-family: 'SuperPixel', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-family: 'MightySouly', Arial, sans-serif !important;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%) !important;
     backdrop-filter: blur(8px) !important;
     padding: 8px 12px !important;
@@ -482,38 +482,32 @@ input[type="text"]:focus {
     text-align: center;
     cursor: pointer;
     padding: 20px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
     width: 100%;
     max-width: 400px;
     margin: 0 auto;
-    background:
-        repeating-linear-gradient(45deg,
-            transparent, transparent 1px,
-            rgba(62, 39, 35, 0.1) 1px, rgba(62, 39, 35, 0.1) 2px),
-        linear-gradient(145deg, #8B4513 0%, #654321 30%, #5D4037 70%, #4A2C2A 100%);
-    border: 3px solid #4A2C2A;
-    box-shadow:
-        inset 2px 2px 4px rgba(139, 69, 19, 0.3),
-        inset -2px -2px 4px rgba(62, 39, 35, 0.6),
-        0 4px 8px rgba(0,0,0,0.3);
+    background: transparent;
 }
 
 .signal-light {
     width: 200px;
     height: 200px;
-    border-radius: 50%;
     margin: 0 auto 20px;
     transition: all 0.3s ease;
 }
 
 .signal-light.red {
-    background: #f44336;
+    background-image: url('images/red.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: 0 0 30px rgba(244, 67, 54, 0.5);
 }
 
 .signal-light.green {
-    background: #4CAF50;
+    background-image: url('images/green.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
 }
 
@@ -521,6 +515,30 @@ input[type="text"]:focus {
     font-size: 1.5rem;
     font-weight: bold;
     font-family: Arial, sans-serif;
+}
+
+.reaction-counter {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #00FF88;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 2px solid #00FF88;
+    display: inline-block;
+    animation: counter-pulse 0.5s infinite alternate;
+}
+
+@keyframes counter-pulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.05); }
+}
+
+.reaction-counter.hidden {
+    display: none;
 }
 
 .tic-tac-toe-container {
@@ -1126,5 +1144,414 @@ input[type="text"]:focus {
         width: 250px;
         height: 250px;
         gap: 10px;
+    }
+}
+
+/* ===== REACTION TIME RESULTS DISPLAY ===== */
+.reaction-results-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    gap: 30px;
+    min-height: 400px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+.reaction-results-title {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2.5rem;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    margin-bottom: 10px;
+}
+
+.reaction-times-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 500px;
+    gap: 20px;
+}
+
+.reaction-time-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 25px 20px;
+    border-radius: 15px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.player-label {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.3rem;
+    color: #FFF8DC;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    font-weight: bold;
+}
+
+.reaction-time-number {
+    font-family: 'MightySouly', Arial, sans-serif; /* Using non-pixel font as requested */
+    font-size: 3.5rem;
+    font-weight: bold;
+    color: #00FF88;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+    line-height: 1;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 2px solid #00FF88;
+    min-width: 140px;
+    text-align: center;
+}
+
+.vs-divider {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2rem;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    font-weight: bold;
+    animation: pulse-vs 2s infinite;
+}
+
+@keyframes pulse-vs {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.fastest-indicator {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1rem;
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid #FFD700;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    animation: fastest-glow 1.5s infinite;
+}
+
+@keyframes fastest-glow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        transform: scale(1.05);
+    }
+}
+
+.winning-time-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 25px;
+    border-radius: 15px;
+    border: 3px solid #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.winning-time-label {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.5rem;
+    color: #FFD700;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.winning-time-number {
+    font-family: 'MightySouly', Arial, sans-serif; /* Using non-pixel font as requested */
+    font-size: 4rem;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+    animation: victory-pulse 2s infinite;
+}
+
+@keyframes victory-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.time-difference {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.2rem;
+    color: #FFF8DC;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    margin-top: 10px;
+}
+
+.no-clicks-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 15px;
+    border: 2px solid #FF6B6B;
+}
+
+.no-clicks-text {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2rem;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    text-align: center;
+}
+
+.no-clicks-subtext {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.3rem;
+    color: #FFF8DC;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Enhanced competition styling */
+.competition-message {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 15px;
+    animation: competition-glow 2s infinite;
+}
+
+.competition-message.ultra-close {
+    color: #FF0080;
+    background: rgba(255, 0, 128, 0.1);
+    border: 2px solid #FF0080;
+}
+
+.competition-message.very-close {
+    color: #FF6B00;
+    background: rgba(255, 107, 0, 0.1);
+    border: 2px solid #FF6B00;
+}
+
+.competition-message.close {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.1);
+    border: 2px solid #FFD700;
+}
+
+.competition-message.good {
+    color: #00FF88;
+    background: rgba(0, 255, 136, 0.1);
+    border: 2px solid #00FF88;
+}
+
+.competition-message.wide {
+    color: #888;
+    background: rgba(136, 136, 136, 0.1);
+    border: 2px solid #888;
+}
+
+@keyframes competition-glow {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+.reaction-time-player.winner {
+    border: 3px solid #FFD700;
+    background: rgba(255, 215, 0, 0.1);
+    transform: scale(1.05);
+}
+
+.reaction-time-player.loser {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.performance-rating {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1rem;
+    margin-top: 10px;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.margin-display {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.2rem;
+    color: #FF6B6B;
+    background: rgba(255, 107, 107, 0.2);
+    padding: 5px 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #FF6B6B;
+}
+
+.victory-stats {
+    background: rgba(255, 215, 0, 0.1);
+    border: 3px solid #FFD700;
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.margin-of-victory {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.5rem;
+    color: #FF6B6B;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    margin-top: 10px;
+}
+
+/* Mobile responsiveness for reaction time results */
+@media (max-width: 768px) {
+    .reaction-results-container {
+        padding: 20px;
+        margin: 10px;
+    }
+
+    .reaction-results-title {
+        font-size: 2rem;
+    }
+
+    .reaction-times-display {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .reaction-time-number {
+        font-size: 2.5rem;
+        min-width: 120px;
+    }
+
+    .winning-time-number {
+        font-size: 3rem;
+    }
+
+    .no-clicks-text {
+        font-size: 1.5rem;
+    }
+
+    .competition-message {
+        font-size: 1.4rem;
+    }
+}
+
+/* Reaction Time Results Display */
+.reaction-time-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    animation: reaction-results-fade-in 1s ease-out;
+}
+
+.reaction-stats {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 100%;
+}
+
+.time-display {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.your-time, .opponent-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.label {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.2rem;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.time-value {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #00FF88;
+    text-shadow:
+        0 0 10px rgba(0, 255, 136, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.8);
+    padding: 15px 25px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    border: 2px solid rgba(0, 255, 136, 0.3);
+    min-width: 120px;
+}
+
+.vs {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ff6b6b;
+    text-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
+}
+
+.analysis {
+    font-family: 'MightySouly', Arial, sans-serif;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+@keyframes reaction-results-fade-in {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive design for reaction time results */
+@media (max-width: 768px) {
+    .time-display {
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .vs {
+        font-size: 1.5rem;
+    }
+
+    .time-value {
+        font-size: 2rem;
+        min-width: 100px;
+    }
+
+    .analysis {
+        font-size: 1.3rem;
     }
 }

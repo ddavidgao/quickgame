@@ -69,6 +69,7 @@ interface GameInstance {
   startTime?: number;                   // When the game started (timestamp)
   endTime?: number;                     // When the game ended (timestamp)
   timerInterval?: NodeJS.Timeout;       // Timer interval for cleanup
+  playersReadyForCountdown?: Set<string>; // Track which players are ready for countdown
 }
 
 // =====================================================
@@ -256,8 +257,8 @@ io.on("connection", (socket: Socket) => {
           isSuddenDeath: false
         });
 
-        // Start the countdown before the game begins
-        startCountdown(gameInstance);
+        // Don't start countdown immediately - wait for clients to be ready
+        console.log(`[GAME READY] Match created, waiting for clients to load game screen...`);
         // Broadcast updated queue status to any remaining players
         broadcastQueueStatus();
       } catch (error) {
@@ -376,8 +377,8 @@ io.on("connection", (socket: Socket) => {
             });
           });
 
-          // Start the countdown
-          startCountdown(gameInstance);
+          // Don't start countdown immediately - wait for clients to be ready
+          console.log(`[TOURNAMENT GAME READY] Next game created, waiting for clients to load...`);
         } catch (error) {
           console.error("Failed to create next game in tournament:", error);
         }
@@ -443,6 +444,31 @@ io.on("connection", (socket: Socket) => {
   });
 
   // ===== GAMEPLAY EVENTS =====
+
+  // Event: Client is ready for countdown (after game screen loads)
+  socket.on("ready-for-countdown", () => {
+    console.log(`Player ${socket.id} is ready for countdown`);
+
+    const gameInstance = findGameInstance(socket.id);
+    if (!gameInstance) {
+      console.log(`No game found for player ${socket.id}`);
+      return;
+    }
+
+    // Mark this player as ready for countdown
+    if (!gameInstance.playersReadyForCountdown) {
+      gameInstance.playersReadyForCountdown = new Set();
+    }
+    gameInstance.playersReadyForCountdown.add(socket.id);
+
+    console.log(`[COUNTDOWN READY] ${gameInstance.playersReadyForCountdown.size}/${gameInstance.game.players.length} players ready`);
+
+    // If both players are ready, start the countdown
+    if (gameInstance.playersReadyForCountdown.size === gameInstance.game.players.length) {
+      console.log(`[COUNTDOWN START] All players ready, starting countdown!`);
+      startCountdown(gameInstance);
+    }
+  });
 
   // Event: Player performs an action in their current game (click, move, choice, etc.)
   socket.on("game-action", (data) => {

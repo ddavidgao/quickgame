@@ -15,7 +15,7 @@ export class RockPaperScissorsGame extends BaseGame {
     description: "Best of 3 rounds - rock beats scissors, paper beats rock, scissors beats paper!",  // Instructions
     minPlayers: 2,                                                     // Exactly 2 players required
     maxPlayers: 2,
-    duration: 30000,                                                   // 30 seconds max
+    duration: 20000,                                                   // 20 seconds max (faster for multi-round)
     category: "chance"                                                 // Chance-based game category
   };
 

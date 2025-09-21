@@ -319,8 +319,14 @@ class ModularQuickGame {
         if (screenName === 'menu') {
             this.resetGame();
         } else if (screenName === 'results') {
-            // Clear game area when transitioning to results screen
-            this.elements.gameArea.innerHTML = '';
+            // Clear game area when transitioning to results screen (unless skipGameAreaClear is set)
+            console.log('[SHOW SCREEN] Results screen - skipGameAreaClear:', this.skipGameAreaClear);
+            if (!this.skipGameAreaClear) {
+                console.log('[SHOW SCREEN] Clearing game area');
+                this.elements.gameArea.innerHTML = '';
+            } else {
+                console.log('[SHOW SCREEN] Skipping game area clear - preserving reaction time display');
+            }
             // Reset game status
             if (this.elements.gameStatus) {
                 this.elements.gameStatus.textContent = 'Game Complete!';
@@ -329,12 +335,26 @@ class ModularQuickGame {
     }
 
     showCountdown(count) {
-        this.elements.countdownDisplay.classList.remove('hidden');
-        this.elements.countdownDisplay.querySelector('.countdown-number').textContent = count;
+        console.log(`[COUNTDOWN] Showing countdown: ${count}`);
+        if (this.elements.countdownDisplay) {
+            this.elements.countdownDisplay.classList.remove('hidden');
+            const numberElement = this.elements.countdownDisplay.querySelector('.countdown-number');
+            if (numberElement) {
+                numberElement.textContent = count;
+                console.log(`[COUNTDOWN] Set countdown number to: ${count}`);
+            } else {
+                console.error('[COUNTDOWN] countdown-number element not found!');
+            }
+        } else {
+            console.error('[COUNTDOWN] countdownDisplay element not found!');
+        }
     }
 
     hideCountdown() {
-        this.elements.countdownDisplay.classList.add('hidden');
+        console.log('[COUNTDOWN] Hiding countdown');
+        if (this.elements.countdownDisplay) {
+            this.elements.countdownDisplay.classList.add('hidden');
+        }
     }
 
     updateGameTimer(timeLeft) {
@@ -518,9 +538,6 @@ class ModularQuickGame {
     endGame(data) {
         this.gameState = 'finished';
 
-        let titleText = '';
-        let titleClass = '';
-
         // Use match scores from server instead of local tracking
         if (data.matchScores) {
             this.playerFinalScore = data.matchScores.you;
@@ -548,6 +565,32 @@ class ModularQuickGame {
             console.log(`[GAME PROGRESS] Game ${this.currentGameNumber}/${this.totalGames}`);
         }
 
+        // Check for reaction time data FIRST and handle completely separately
+        console.log('[DEBUG] endGame data received:', data);
+        console.log('[DEBUG] Full data structure:', JSON.stringify(data, null, 2));
+        console.log('[DEBUG] gameData exists:', !!data.gameData);
+        console.log('[DEBUG] gameData content:', data.gameData);
+        console.log('[DEBUG] reactionTimes exists:', !!(data.gameData && data.gameData.reactionTimes));
+        console.log('[DEBUG] reactionTimes content:', data.gameData ? data.gameData.reactionTimes : 'no gameData');
+
+        if (data.gameData && data.gameData.reactionTimes) {
+            console.log('[DEBUG] Showing custom reaction time results - bypassing normal flow');
+            this.handleReactionTimeResults(data);
+            return; // Completely exit - no normal results
+        } else {
+            console.log('[DEBUG] No reaction time data found, showing normal results');
+            console.log('[DEBUG] data.gameData exists:', !!data.gameData);
+            if (data.gameData) {
+                console.log('[DEBUG] gameData keys:', Object.keys(data.gameData));
+            }
+        }
+
+        // NORMAL RESULTS FLOW (non-reaction time games)
+        console.log('[DEBUG] Showing normal results - no reaction time data');
+
+        let titleText = '';
+        let titleClass = '';
+
         // Set result title based on who won this individual game
         if (data.winner) {
             titleText = 'You Win!';
@@ -560,13 +603,14 @@ class ModularQuickGame {
             titleClass = 'lose';
         }
 
-        // Update final score display
+        // Update final score display for non-reaction games
         this.updateFinalScoreDisplay();
 
         if (this.elements.resultTitle) {
             this.elements.resultTitle.textContent = titleText;
             this.elements.resultTitle.className = titleClass;
         }
+
         if (this.elements.finalYourScore) {
             this.elements.finalYourScore.textContent = this.playerFinalScore;
             console.log(`[DEBUG] Set finalYourScore to: ${this.playerFinalScore}`);
@@ -587,6 +631,147 @@ class ModularQuickGame {
         } else {
             this.showScreen('results');
         }
+    }
+
+    // NEW: Handle reaction time results completely separately
+    handleReactionTimeResults(data) {
+        console.log('[REACTION TIME HANDLER] Data received:', data);
+        console.log('[REACTION TIME HANDLER] Game data:', data.gameData);
+
+        // Extract reaction times from the game data
+        const reactionTimes = data.gameData.reactionTimes || {};
+        const playerIds = Object.keys(reactionTimes);
+        console.log('[REACTION TIME HANDLER] Reaction times:', reactionTimes);
+        console.log('[REACTION TIME HANDLER] Player IDs:', playerIds);
+
+        // Set result title
+        let titleText = '';
+        let titleClass = '';
+
+        if (data.winner) {
+            titleText = 'You Win!';
+            titleClass = '';
+        } else if (data.draw) {
+            titleText = "It's a Draw!";
+            titleClass = 'draw';
+        } else {
+            titleText = 'You Lose!';
+            titleClass = 'lose';
+        }
+
+        // Create custom reaction time display FIRST before showing screen
+        this.createReactionTimeDisplay(reactionTimes, data);
+
+        // Set a flag to prevent game area from being cleared in showScreen
+        this.skipGameAreaClear = true;
+
+        // Check if this was the final game and show the appropriate screen
+        if (this.currentGameNumber >= this.totalGames) {
+            console.log(`[FINAL MATCH] All ${this.totalGames} games completed!`);
+            this.showFinalMatchResults();
+        } else {
+            this.showScreen('results');
+        }
+
+        // Reset the flag
+        this.skipGameAreaClear = false;
+
+        // Update the main result title
+        if (this.elements.resultTitle) {
+            this.elements.resultTitle.textContent = titleText;
+            this.elements.resultTitle.className = titleClass;
+        }
+
+        // Update the current game scores at the top (YOUR SCORE: X, OPPONENT SCORE: Y)
+        if (data.scores) {
+            const yourScore = data.scores[this.socket.id] || 0;
+            const opponentScore = Object.keys(data.scores).find(id => id !== this.socket.id);
+            const opponentScoreValue = opponentScore ? data.scores[opponentScore] : 0;
+
+            console.log('[REACTION SCORES] Your score:', yourScore, 'Opponent score:', opponentScoreValue);
+
+            // Update the score display elements
+            if (this.elements.playerScore) {
+                this.elements.playerScore.textContent = yourScore;
+            }
+            if (this.elements.opponentScore) {
+                this.elements.opponentScore.textContent = opponentScoreValue;
+            }
+        }
+
+        // Hide the normal final score display - we don't want it for reaction time
+        if (this.elements.finalScoreDisplay) {
+            this.elements.finalScoreDisplay.classList.add('hidden');
+        }
+    }
+
+    // Create custom reaction time display showing individual times
+    createReactionTimeDisplay(reactionTimes, data) {
+        console.log('[REACTION DISPLAY] Creating display with times:', reactionTimes);
+
+        const gameArea = this.elements.gameArea;
+        console.log('[REACTION DISPLAY] gameArea element:', gameArea);
+        console.log('[REACTION DISPLAY] gameArea exists:', !!gameArea);
+        if (!gameArea) {
+            console.log('[REACTION DISPLAY] ERROR: gameArea not found!');
+            return;
+        }
+
+        // Get your reaction time and opponent's reaction time
+        const yourTime = reactionTimes[this.socket.id];
+        const opponentId = Object.keys(reactionTimes).find(id => id !== this.socket.id);
+        const opponentTime = opponentId ? reactionTimes[opponentId] : null;
+
+        console.log('[REACTION DISPLAY] Your time:', yourTime, 'Opponent time:', opponentTime);
+
+        // Calculate difference and create analysis
+        let analysisText = '';
+        let yourTimeText = yourTime ? `${yourTime}ms` : 'Did not click';
+        let opponentTimeText = opponentTime ? `${opponentTime}ms` : 'Did not click';
+
+        if (yourTime && opponentTime) {
+            const difference = Math.abs(yourTime - opponentTime);
+            if (difference < 10) {
+                analysisText = `INSANELY CLOSE! Only ${difference}ms difference!`;
+            } else if (difference < 25) {
+                analysisText = `EXTREMELY CLOSE! ${difference}ms difference!`;
+            } else if (difference < 50) {
+                analysisText = `CLOSE RACE! ${difference}ms difference`;
+            } else {
+                analysisText = `${difference}ms difference`;
+            }
+        } else if (yourTime && !opponentTime) {
+            analysisText = 'You clicked, opponent did not!';
+        } else if (!yourTime && opponentTime) {
+            analysisText = 'Opponent clicked, you did not!';
+        } else {
+            analysisText = 'Nobody clicked!';
+        }
+
+        // Create the custom reaction time display
+        console.log('[REACTION DISPLAY] About to set innerHTML...');
+        gameArea.innerHTML = `
+            <div class="reaction-time-results">
+                <div class="reaction-stats">
+                    <div class="time-display">
+                        <div class="your-time">
+                            <div class="label">YOUR TIME</div>
+                            <div class="time-value">${yourTimeText}</div>
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="opponent-time">
+                            <div class="label">OPPONENT TIME</div>
+                            <div class="time-value">${opponentTimeText}</div>
+                        </div>
+                    </div>
+                    <div class="analysis">
+                        ${analysisText}
+                    </div>
+                </div>
+            </div>
+        `;
+        console.log('[REACTION DISPLAY] innerHTML set! Content now:', gameArea.innerHTML);
+        console.log('[REACTION DISPLAY] gameArea children count:', gameArea.children.length);
     }
 
     resetGame() {
@@ -744,10 +929,10 @@ class ModularQuickGame {
             this.showSuddenDeathAnimation();
         }
 
-        // After 3 seconds, proceed to game screen
+        // After 6 seconds, proceed to game screen (doubled)
         setTimeout(() => {
             this.proceedToGameScreen(gameData);
-        }, 3000);
+        }, 6000);
     }
 
     // NEW: SUDDEN DEATH Animation - Epic entrance for the tiebreaker!
@@ -804,6 +989,9 @@ class ModularQuickGame {
 
     // NEW: Proceed to the actual game screen
     proceedToGameScreen(gameData) {
+        // RESET ALL GAME STATE BEFORE NEW GAME
+        this.resetGameState();
+
         // Set opponent name for game screen
         this.elements.opponentNameDisplay.textContent = gameData.opponent;
 
@@ -812,11 +1000,209 @@ class ModularQuickGame {
 
         // Update game progress when game is found
         this.updateGameProgress();
+
+        // Tell server we're ready for countdown (after game screen is fully loaded)
+        console.log('[CLIENT READY] Game screen loaded, telling server ready for countdown');
+        this.socket.emit('ready-for-countdown');
+    }
+
+    // NEW: Reset all game state between games
+    resetGameState() {
+        console.log('[GAME RESET] Resetting all game state for new game');
+
+        // Reset timer display to default
+        if (this.elements.gameTimer) {
+            this.elements.gameTimer.textContent = '30';
+            this.elements.gameTimer.style.color = '#ffffff';
+            this.elements.gameTimer.style.animation = '';
+            this.elements.gameTimer.style.fontWeight = '';
+            this.elements.gameTimer.style.transform = '';
+        }
+
+        // Reset game status
+        if (this.elements.gameStatus) {
+            this.elements.gameStatus.textContent = 'Get Ready!';
+            this.elements.gameStatus.style.color = '#ffffff';
+        }
+
+        // Clear game area completely
+        if (this.elements.gameArea) {
+            this.elements.gameArea.innerHTML = '';
+        }
+
+        // Cleanup current game component if exists
+        if (this.currentGameComponent && this.currentGameComponent.cleanup) {
+            this.currentGameComponent.cleanup();
+        }
+        this.currentGameComponent = null;
+
+        // Ensure countdown is ready (hidden but available)
+        this.hideCountdown();
+
+        // Ensure countdown display element is properly initialized
+        if (this.elements.countdownDisplay) {
+            const numberElement = this.elements.countdownDisplay.querySelector('.countdown-number');
+            if (numberElement) {
+                numberElement.textContent = '3'; // Reset to initial state
+            }
+        }
+
+        console.log('[GAME RESET] Game state reset complete - ready for countdown');
     }
 
     resetFindMatchButton() {
         this.elements.findMatchBtn.disabled = false;
         this.elements.findMatchBtn.textContent = 'Find Match';
+    }
+
+    // NEW: Show engaging reaction time results with large, non-pixel fonts
+    showReactionTimeResults(data) {
+        console.log('[REACTION TIME] Showing detailed reaction time results');
+        console.log('[REACTION TIME] Data received:', data);
+
+        const reactionTimes = data.gameData.reactionTimes || {};
+        const playerIds = Object.keys(reactionTimes);
+        const fastestTime = data.gameData.fastestTime;
+        const onlyOneClicked = data.gameData.onlyOneClicked;
+        const noClicks = data.gameData.noClicks;
+
+        let titleText = '';
+        let titleClass = '';
+
+        // Determine the title based on results
+        if (noClicks) {
+            titleText = 'Nobody Clicked!';
+            titleClass = 'draw';
+        } else if (onlyOneClicked) {
+            titleText = data.winner ? 'You Win!' : 'You Lose!';
+            titleClass = data.winner ? '' : 'lose';
+        } else {
+            titleText = data.winner ? 'You Win!' : 'You Lose!';
+            titleClass = data.winner ? '' : 'lose';
+        }
+
+        // Update the main result title for reaction time results
+        if (this.elements.resultTitle) {
+            this.elements.resultTitle.textContent = titleText;
+            this.elements.resultTitle.className = titleClass;
+        }
+
+        // Create detailed reaction time display
+        const gameArea = this.elements.gameArea;
+        if (gameArea) {
+            const yourTime = reactionTimes[this.socket.id];
+            const opponentTime = this.getOpponentReactionTime(reactionTimes, this.socket.id);
+            const difference = yourTime && opponentTime ? Math.abs(yourTime - opponentTime) : 0;
+
+            // Create dramatic messages based on how close it was
+            let closenessMessage = '';
+            let closenessClass = '';
+            if (difference > 0) {
+                if (difference < 10) {
+                    closenessMessage = 'INSANELY CLOSE!';
+                    closenessClass = 'ultra-close';
+                } else if (difference < 25) {
+                    closenessMessage = 'EXTREMELY CLOSE!';
+                    closenessClass = 'very-close';
+                } else if (difference < 50) {
+                    closenessMessage = 'CLOSE RACE!';
+                    closenessClass = 'close';
+                } else if (difference < 100) {
+                    closenessMessage = 'Good reaction!';
+                    closenessClass = 'good';
+                } else {
+                    closenessMessage = 'Wide margin...';
+                    closenessClass = 'wide';
+                }
+            }
+
+            gameArea.innerHTML = `
+                <div class="reaction-results-container">
+                    <h2 class="reaction-results-title">REACTION SHOWDOWN</h2>
+
+                    ${!noClicks ? `
+                        <div class="competition-message ${closenessClass}">
+                            ${closenessMessage}
+                        </div>
+
+                        <div class="reaction-times-display">
+                            <div class="reaction-time-player ${yourTime === fastestTime ? 'winner' : 'loser'}">
+                                <div class="player-label">YOU</div>
+                                <div class="reaction-time-number">${yourTime ? yourTime + 'ms' : 'NO CLICK'}</div>
+                                <div class="performance-rating">${this.getPerformanceRating(yourTime)}</div>
+                                ${yourTime === fastestTime ? '<div class="fastest-indicator">CHAMPION!</div>' : ''}
+                            </div>
+
+                            <div class="vs-divider">
+                                <div class="margin-display">${difference > 0 ? `${difference}ms` : ''}</div>
+                                <div class="vs-text">VS</div>
+                            </div>
+
+                            <div class="reaction-time-player ${opponentTime === fastestTime ? 'winner' : 'loser'}">
+                                <div class="player-label">OPPONENT</div>
+                                <div class="reaction-time-number">${opponentTime ? opponentTime + 'ms' : 'NO CLICK'}</div>
+                                <div class="performance-rating">${this.getPerformanceRating(opponentTime)}</div>
+                                ${opponentTime === fastestTime ? '<div class="fastest-indicator">CHAMPION!</div>' : ''}
+                            </div>
+                        </div>
+
+                        ${fastestTime && !onlyOneClicked ? `
+                            <div class="victory-stats">
+                                <div class="winning-time-label">Lightning Fast Time:</div>
+                                <div class="winning-time-number">${fastestTime}ms</div>
+                                ${difference > 0 ? `<div class="margin-of-victory">Won by ${difference}ms!</div>` : ''}
+                            </div>
+                        ` : ''}
+                    ` : `
+                        <div class="no-clicks-message">
+                            <div class="no-clicks-text">Nobody clicked after GREEN!</div>
+                            <div class="no-clicks-subtext">Were you both asleep?</div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        // Update final scores as normal
+        this.updateFinalScoreDisplay();
+
+        // Show results screen
+        this.showScreen('results');
+
+        // Hide the normal scores section for reaction time since we have detailed display
+        if (this.elements.finalYourScore) {
+            this.elements.finalYourScore.parentElement.style.display = 'none';
+        }
+    }
+
+    // Helper function to get opponent's reaction time
+    getOpponentReactionTime(reactionTimes, yourSocketId) {
+        const opponentTime = Object.entries(reactionTimes).find(([id, time]) => id !== yourSocketId);
+        return opponentTime ? opponentTime[1] : null;
+    }
+
+    // Helper function to calculate and display time difference
+    calculateTimeDifference(reactionTimes, fastestTime) {
+        const times = Object.values(reactionTimes);
+        if (times.length === 2) {
+            const difference = Math.abs(times[0] - times[1]);
+            return `<div class="time-difference">Difference: ${difference}ms</div>`;
+        }
+        return '';
+    }
+
+    // Helper function to get performance rating based on reaction time
+    getPerformanceRating(reactionTime) {
+        if (!reactionTime) return '';
+
+        if (reactionTime < 150) return 'LIGHTNING!';
+        if (reactionTime < 200) return 'SUPERFAST!';
+        if (reactionTime < 250) return 'EXCELLENT!';
+        if (reactionTime < 300) return 'GREAT!';
+        if (reactionTime < 400) return 'GOOD!';
+        if (reactionTime < 500) return 'AVERAGE';
+        if (reactionTime < 600) return 'SLOW...';
+        return 'SLEEPY...';
     }
 }
 
